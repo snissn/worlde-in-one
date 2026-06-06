@@ -200,6 +200,11 @@ h1 {
   border-color: var(--accent);
 }
 
+.final-row .tile.correct {
+  border-color: var(--correct);
+  background: var(--correct);
+}
+
 .daily-panel {
   padding: 14px;
   border: 1px solid rgb(255 255 255 / 8%);

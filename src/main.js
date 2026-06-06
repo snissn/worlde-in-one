@@ -20,16 +20,12 @@ const KEY_STATE_PRIORITY = Object.freeze({
   [TileState.CORRECT]: 3
 });
 
+const STORAGE_PREFIX = "wordle-in-one-state";
 const daily = createDailyPuzzles(new Date(), 5);
-const puzzleStates = daily.puzzles.map(() => ({
-  guess: "",
-  submitted: false,
-  pattern: null,
-  message: null,
-  messageKind: "info"
-}));
+const savedDailyState = loadSavedDailyState(daily);
+const puzzleStates = savedDailyState.states;
 
-let activePuzzleIndex = 0;
+let activePuzzleIndex = savedDailyState.activePuzzleIndex;
 let puzzle = daily.puzzles[activePuzzleIndex];
 
 const grid = document.querySelector("#grid");
@@ -45,6 +41,88 @@ const revealButton = document.querySelector("#reveal");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
+
+function solvedPattern() {
+  return Array(5).fill(TileState.CORRECT);
+}
+
+function createEmptyPuzzleState() {
+  return {
+    guess: "",
+    submitted: false,
+    pattern: null,
+    message: null,
+    messageKind: "info"
+  };
+}
+
+function storageKey(dateKey) {
+  return `${STORAGE_PREFIX}:${dateKey}`;
+}
+
+function loadSavedDailyState(dailySet) {
+  const fallback = {
+    activePuzzleIndex: 0,
+    states: dailySet.puzzles.map(() => createEmptyPuzzleState())
+  };
+
+  try {
+    const raw = window.localStorage?.getItem(storageKey(dailySet.dateKey));
+    if (!raw) {
+      return fallback;
+    }
+
+    const saved = JSON.parse(raw);
+    const answers = dailySet.puzzles.map((dailyPuzzle) => dailyPuzzle.answer);
+    if (
+      saved?.version !== 1 ||
+      saved.dateKey !== dailySet.dateKey ||
+      JSON.stringify(saved.answers) !== JSON.stringify(answers) ||
+      !Array.isArray(saved.states)
+    ) {
+      return fallback;
+    }
+
+    const states = dailySet.puzzles.map((dailyPuzzle, index) => {
+      const savedState = saved.states[index] ?? {};
+      const guess = normalizeWord(savedState.guess);
+      const submitted = savedState.submitted === true && guess === dailyPuzzle.answer;
+
+      return {
+        ...createEmptyPuzzleState(),
+        guess,
+        submitted,
+        pattern: submitted ? solvedPattern() : null,
+        message: submitted ? "Got it. That was the only possible answer." : null,
+        messageKind: submitted ? "success" : "info"
+      };
+    });
+    const activePuzzleIndex = Number.isInteger(saved.activePuzzleIndex) && saved.activePuzzleIndex >= 0 && saved.activePuzzleIndex < states.length
+      ? saved.activePuzzleIndex
+      : 0;
+
+    return { activePuzzleIndex, states };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveDailyState() {
+  try {
+    window.localStorage?.setItem(storageKey(daily.dateKey), JSON.stringify({
+      version: 1,
+      dateKey: daily.dateKey,
+      answers: daily.puzzles.map((dailyPuzzle) => dailyPuzzle.answer),
+      activePuzzleIndex,
+      states: puzzleStates.map((state) => ({
+        guess: state.guess,
+        submitted: state.submitted
+      }))
+    }));
+  } catch {
+    // localStorage can be unavailable in private browsing or locked-down embeds.
+  }
+}
 
 function activeState() {
   return puzzleStates[activePuzzleIndex];
@@ -161,6 +239,7 @@ function syncGuess(rawValue) {
   }
 
   updateFinalTiles(state.guess);
+  saveDailyState();
   return state.guess;
 }
 
@@ -187,13 +266,14 @@ function submitGuess() {
     return;
   }
 
-  state.pattern = Array(5).fill(TileState.CORRECT);
+  state.pattern = solvedPattern();
   state.submitted = true;
   updateFinalTiles(state.guess, state.pattern);
   updateKeyboard(keyboardRowsForActivePuzzle());
   updatePuzzleTabs();
   setKeyboardDisabled(true);
   setMessage("Got it. That was the only possible answer.", "success");
+  saveDailyState();
 }
 
 function renderKeyboard() {
@@ -316,6 +396,7 @@ function switchPuzzle(index) {
   updateKeyboard(keyboardRowsForActivePuzzle());
   setKeyboardDisabled(activeState().submitted);
   showActiveMessage();
+  saveDailyState();
 }
 
 function renderPuzzleTabs() {
@@ -344,13 +425,7 @@ function renderPuzzleTabs() {
 }
 
 function resetActivePuzzle() {
-  puzzleStates[activePuzzleIndex] = {
-    guess: "",
-    submitted: false,
-    pattern: null,
-    message: null,
-    messageKind: "info"
-  };
+  puzzleStates[activePuzzleIndex] = createEmptyPuzzleState();
   switchPuzzle(activePuzzleIndex);
 }
 
