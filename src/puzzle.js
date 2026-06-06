@@ -7,6 +7,68 @@ export const TileState = Object.freeze({
 });
 
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
+const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
+
+for (const starter of STARTER_WORDS) {
+  if (!VALID_GUESS_SET.has(starter)) {
+    throw new Error(`Starter word is not a valid guess: ${starter}`);
+  }
+}
+
+function buildGlobalWordStats() {
+  const letters = Object.create(null);
+  const positions = Array.from({ length: 5 }, () => Object.create(null));
+
+  for (const answer of ANSWERS) {
+    const unique = new Set();
+
+    for (let i = 0; i < answer.length; i += 1) {
+      const letter = answer[i];
+      positions[i][letter] = (positions[i][letter] ?? 0) + 1;
+      unique.add(letter);
+    }
+
+    for (const letter of unique) {
+      letters[letter] = (letters[letter] ?? 0) + 1;
+    }
+  }
+
+  return Object.freeze({ letters, positions });
+}
+
+const GLOBAL_WORD_STATS = buildGlobalWordStats();
+
+function wordQuality(word) {
+  const unique = new Set();
+  let score = 0;
+
+  for (let i = 0; i < word.length; i += 1) {
+    const letter = word[i];
+    score += GLOBAL_WORD_STATS.positions[i][letter] ?? 0;
+
+    if (unique.has(letter)) {
+      score -= ANSWERS.length * 0.12;
+    } else {
+      score += (GLOBAL_WORD_STATS.letters[letter] ?? 0) * 1.25;
+      unique.add(letter);
+    }
+  }
+
+  return score;
+}
+
+function compareKeys(left, right) {
+  if (!right) {
+    return -1;
+  }
+
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] < right[i]) return -1;
+    if (left[i] > right[i]) return 1;
+  }
+
+  return 0;
+}
 
 export function normalizeWord(input) {
   return String(input ?? "")
@@ -71,25 +133,92 @@ function matchingCandidates(candidates, guess, pattern) {
   return candidates.filter((candidate) => signature(scoreGuess(guess, candidate)) === wanted);
 }
 
-function countMatches(candidates, guess, pattern, stopAt = Infinity) {
-  const wanted = signature(pattern);
-  let count = 0;
+function patternCounts(candidates, guess) {
+  const counts = new Map();
 
   for (const candidate of candidates) {
-    if (signature(scoreGuess(guess, candidate)) === wanted) {
-      count += 1;
-      if (count >= stopAt) {
-        return count;
-      }
+    const key = signature(scoreGuess(guess, candidate));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function solverMetrics(candidates, guess) {
+  const counts = patternCounts(candidates, guess);
+  let worstBucket = 0;
+  let sumSquares = 0;
+  let entropy = 0;
+
+  for (const count of counts.values()) {
+    worstBucket = Math.max(worstBucket, count);
+    sumSquares += count * count;
+
+    const probability = count / candidates.length;
+    entropy -= probability * Math.log2(probability);
+  }
+
+  return {
+    counts,
+    entropy,
+    expectedRemaining: sumSquares / candidates.length,
+    worstBucket
+  };
+}
+
+function chooseOpeningGuess(target, used) {
+  for (const starter of STARTER_WORDS) {
+    if (starter !== target && !used.has(starter)) {
+      return starter;
     }
   }
 
-  return count;
+  return null;
 }
 
-function chooseBestProbe(target, candidates, used, rng) {
-  let bestCount = Infinity;
-  let bestWords = [];
+function chooseInformationProbe(target, candidates, used, avoidSingleton = false) {
+  const candidateSet = new Set(candidates);
+  let best = null;
+  let bestKey = null;
+
+  for (const guess of VALID_GUESSES) {
+    if (guess === target || used.has(guess)) {
+      continue;
+    }
+
+    const metrics = solverMetrics(candidates, guess);
+    const pattern = scoreGuess(guess, target);
+    const nextCount = metrics.counts.get(signature(pattern)) ?? 0;
+
+    if (nextCount >= candidates.length) {
+      continue;
+    }
+
+    const candidatePenalty = candidateSet.has(guess) ? 0 : 1;
+    const singletonPenalty = avoidSingleton && nextCount === 1 ? 1 : 0;
+    const key = [
+      singletonPenalty,
+      Math.round(metrics.expectedRemaining * 1000),
+      metrics.worstBucket,
+      nextCount,
+      candidates.length <= 8 ? candidatePenalty : 0,
+      -Math.round(metrics.entropy * 1000),
+      -Math.round(wordQuality(guess)),
+      guess
+    ];
+
+    if (compareKeys(key, bestKey) < 0) {
+      best = guess;
+      bestKey = key;
+    }
+  }
+
+  return best;
+}
+
+function chooseNearMissGuess(target, used) {
+  let best = null;
+  let bestKey = null;
 
   for (const guess of VALID_GUESSES) {
     if (guess === target || used.has(guess)) {
@@ -97,34 +226,28 @@ function chooseBestProbe(target, candidates, used, rng) {
     }
 
     const pattern = scoreGuess(guess, target);
-    const matchCount = countMatches(candidates, guess, pattern, bestCount + 1);
-
-    if (matchCount >= candidates.length) {
+    if (isSolved(pattern)) {
       continue;
     }
 
-    if (matchCount < bestCount) {
-      bestCount = matchCount;
-      bestWords = [guess];
-    } else if (matchCount === bestCount) {
-      bestWords.push(guess);
+    const correct = pattern.filter((state) => state === TileState.CORRECT).length;
+    const present = pattern.filter((state) => state === TileState.PRESENT).length;
+    const repeatedLetters = guess.length - new Set(guess).size;
+    const key = [
+      -(correct * 4 + present * 2),
+      pattern.filter((state) => state === TileState.ABSENT).length,
+      repeatedLetters,
+      -Math.round(wordQuality(guess)),
+      guess
+    ];
+
+    if (compareKeys(key, bestKey) < 0) {
+      best = guess;
+      bestKey = key;
     }
   }
 
-  if (bestWords.length === 0) {
-    return null;
-  }
-
-  return bestWords[Math.floor(rng() * bestWords.length)];
-}
-
-function choosePaddingGuess(target, used, rng) {
-  const pool = VALID_GUESSES.filter((word) => word !== target && !used.has(word));
-  if (pool.length === 0) {
-    return null;
-  }
-
-  return pool[Math.floor(rng() * pool.length)];
+  return best;
 }
 
 function shuffled(words, rng) {
@@ -143,7 +266,7 @@ export function remainingAnswersForRows(rows, answers = ANSWERS) {
   );
 }
 
-export function buildPuzzleForTarget(targetInput, rng = Math.random) {
+export function buildPuzzleForTarget(targetInput) {
   const target = normalizeWord(targetInput);
   if (!ANSWERS.includes(target)) {
     throw new Error(`Unknown answer word: ${targetInput}`);
@@ -154,7 +277,10 @@ export function buildPuzzleForTarget(targetInput, rng = Math.random) {
   const rows = [];
 
   while (rows.length < 5 && candidates.length > 1) {
-    const guess = chooseBestProbe(target, candidates, used, rng);
+    const guess = rows.length === 0
+      ? chooseOpeningGuess(target, used)
+      : chooseInformationProbe(target, candidates, used, rows.length < 4);
+
     if (!guess) {
       return null;
     }
@@ -170,7 +296,7 @@ export function buildPuzzleForTarget(targetInput, rng = Math.random) {
   }
 
   while (rows.length < 5) {
-    const guess = choosePaddingGuess(target, used, rng);
+    const guess = chooseNearMissGuess(target, used);
     if (!guess) {
       return null;
     }
@@ -193,7 +319,7 @@ export function buildPuzzleForTarget(targetInput, rng = Math.random) {
 
 export function createPuzzle(rng = Math.random) {
   for (const target of shuffled(ANSWERS, rng)) {
-    const puzzle = buildPuzzleForTarget(target, rng);
+    const puzzle = buildPuzzleForTarget(target);
     if (puzzle) {
       return puzzle;
     }

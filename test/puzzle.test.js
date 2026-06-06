@@ -44,6 +44,10 @@ test("scores duplicate letters with Wordle-style consumption", () => {
   ]);
 });
 
+test("solver starts with a common Wordle opener instead of a random probe", () => {
+  assert.equal(buildPuzzleForTarget("study").rows[0].word, "crane");
+});
+
 test("generated puzzles have five filled rows and one remaining answer", () => {
   for (let seed = 1; seed <= 75; seed += 1) {
     const puzzle = createPuzzle(seededRandom(seed));

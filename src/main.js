@@ -1,5 +1,6 @@
 import {
   ANSWERS,
+  TileState,
   VALID_GUESSES,
   createPuzzle,
   isSolved,
@@ -9,16 +10,31 @@ import {
   scoreGuess
 } from "./puzzle.js";
 
+const KEYBOARD_ROWS = Object.freeze([
+  Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
+  Object.freeze(["a", "s", "d", "f", "g", "h", "j", "k", "l"]),
+  Object.freeze(["enter", "z", "x", "c", "v", "b", "n", "m", "backspace"])
+]);
+
+const KEY_STATE_PRIORITY = Object.freeze({
+  [TileState.ABSENT]: 1,
+  [TileState.PRESENT]: 2,
+  [TileState.CORRECT]: 3
+});
+
 const puzzle = createPuzzle();
 const grid = document.querySelector("#grid");
 const form = document.querySelector("#guess-form");
 const input = document.querySelector("#guess-input");
+const keyboard = document.querySelector("#keyboard");
 const message = document.querySelector("#message");
 const remainingCount = document.querySelector("#remaining-count");
 const newPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
+const submitButton = form.querySelector("button[type='submit']");
 
 const finalTiles = [];
+const keyboardButtons = new Map();
 let submitted = false;
 
 function setMessage(text, kind = "info") {
@@ -71,6 +87,7 @@ function renderBoard() {
   }
 
   grid.append(finalRow);
+  updateFinalTiles("");
 }
 
 function updateFinalTiles(word, pattern = null) {
@@ -93,14 +110,24 @@ function updateFinalTiles(word, pattern = null) {
   }
 }
 
+function currentGuess() {
+  return normalizeWord(input.value);
+}
+
+function syncGuess(rawValue) {
+  const guess = normalizeWord(rawValue);
+  input.value = guess.toUpperCase();
+  updateFinalTiles(guess);
+  return guess;
+}
+
 function submitGuess(event) {
   event.preventDefault();
   if (submitted) {
     return;
   }
 
-  const guess = normalizeWord(input.value);
-  input.value = guess.toUpperCase();
+  const guess = syncGuess(input.value);
 
   if (guess.length !== 5) {
     setMessage("Enter a five-letter word.", "error");
@@ -116,9 +143,11 @@ function submitGuess(event) {
 
   const pattern = scoreGuess(guess, puzzle.answer);
   updateFinalTiles(guess, pattern);
+  updateKeyboard([...puzzle.rows, { word: guess, pattern }]);
   submitted = true;
   input.disabled = true;
-  form.querySelector("button").disabled = true;
+  submitButton.disabled = true;
+  setKeyboardDisabled(true);
 
   if (isSolved(pattern)) {
     setMessage(`Got it. ${puzzle.answer.toUpperCase()} was the only possible answer.`, "success");
@@ -127,16 +156,135 @@ function submitGuess(event) {
   }
 }
 
+function renderKeyboard() {
+  keyboard.innerHTML = "";
+  keyboardButtons.clear();
+
+  for (const row of KEYBOARD_ROWS) {
+    const rowElement = document.createElement("div");
+    rowElement.className = "keyboard-row";
+
+    for (const key of row) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "key";
+      button.dataset.key = key;
+
+      if (key === "enter") {
+        button.textContent = "Enter";
+        button.classList.add("wide");
+        button.setAttribute("aria-label", "Submit guess");
+      } else if (key === "backspace") {
+        button.textContent = "⌫";
+        button.classList.add("wide");
+        button.setAttribute("aria-label", "Delete last letter");
+      } else {
+        button.textContent = key.toUpperCase();
+        button.setAttribute("aria-label", `Letter ${key.toUpperCase()}`);
+        keyboardButtons.set(key, button);
+      }
+
+      button.addEventListener("click", () => handleKeyboardAction(key));
+      rowElement.append(button);
+    }
+
+    keyboard.append(rowElement);
+  }
+}
+
+function keyboardStatesForRows(rows) {
+  const states = new Map();
+
+  for (const row of rows) {
+    for (let i = 0; i < row.word.length; i += 1) {
+      const letter = row.word[i];
+      const state = row.pattern[i];
+      const previous = states.get(letter);
+
+      if (!previous || KEY_STATE_PRIORITY[state] > KEY_STATE_PRIORITY[previous]) {
+        states.set(letter, state);
+      }
+    }
+  }
+
+  return states;
+}
+
+function updateKeyboard(rows) {
+  const states = keyboardStatesForRows(rows);
+
+  for (const [letter, button] of keyboardButtons.entries()) {
+    button.classList.remove(TileState.ABSENT, TileState.PRESENT, TileState.CORRECT);
+
+    const state = states.get(letter);
+    if (state) {
+      button.classList.add(state);
+      button.setAttribute("aria-label", `Letter ${letter.toUpperCase()}, ${state}`);
+    } else {
+      button.setAttribute("aria-label", `Letter ${letter.toUpperCase()}`);
+    }
+  }
+}
+
+function setKeyboardDisabled(disabled) {
+  for (const button of keyboard.querySelectorAll("button")) {
+    button.disabled = disabled;
+  }
+}
+
+function requestSubmitGuess() {
+  if (typeof form.requestSubmit === "function") {
+    form.requestSubmit();
+  } else {
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  }
+}
+
+function handleKeyboardAction(action) {
+  if (submitted) {
+    return;
+  }
+
+  const guess = currentGuess();
+
+  if (action === "enter") {
+    requestSubmitGuess();
+  } else if (action === "backspace") {
+    syncGuess(guess.slice(0, -1));
+  } else if (guess.length < 5) {
+    syncGuess(`${guess}${action}`);
+  }
+
+  input.focus();
+}
+
 renderBoard();
+renderKeyboard();
+updateKeyboard(puzzle.rows);
 remainingCount.textContent = String(remainingAnswersForRows(puzzle.rows).length);
 setMessage(
   `Exactly one answer remains out of ${ANSWERS.length} answers. Valid guesses: ${VALID_GUESSES.length}.`
 );
 
 input.addEventListener("input", () => {
-  const guess = normalizeWord(input.value);
-  input.value = guess.toUpperCase();
-  updateFinalTiles(guess);
+  syncGuess(input.value);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (submitted || document.activeElement === input) {
+    return;
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    requestSubmitGuess();
+  } else if (event.key === "Backspace") {
+    event.preventDefault();
+    syncGuess(currentGuess().slice(0, -1));
+  } else if (/^[a-z]$/i.test(event.key) && currentGuess().length < 5) {
+    event.preventDefault();
+    syncGuess(`${currentGuess()}${event.key}`);
+  }
 });
 
 form.addEventListener("submit", submitGuess);

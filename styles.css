@@ -247,6 +247,51 @@ button.secondary {
   background: #303747;
 }
 
+.keyboard {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.key {
+  width: 34px;
+  height: 46px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--text);
+  background: #3b4350;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.key.wide {
+  width: 58px;
+  font-size: 0.72rem;
+}
+
+.key.correct {
+  background: var(--correct);
+}
+
+.key.present {
+  background: var(--present);
+}
+
+.key.absent {
+  background: var(--absent);
+}
+
+.key:disabled {
+  color: rgb(255 255 255 / 74%);
+  filter: none;
+}
+
 .message {
   min-height: 1.5em;
   margin: 14px 0 0;
@@ -345,5 +390,23 @@ button.secondary {
 
   .guess-controls {
     grid-template-columns: 1fr;
+  }
+
+  .keyboard-row {
+    gap: 4px;
+  }
+
+  .key {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    height: 42px;
+    font-size: 0.75rem;
+  }
+
+  .key.wide {
+    flex-grow: 1.45;
+    width: auto;
+    font-size: 0.65rem;
   }
 }

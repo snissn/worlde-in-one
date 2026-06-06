@@ -51,13 +51,15 @@
         <p id="message" class="message" role="status">
           Use the clues above to enter the only word left.
         </p>
+
+        <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
       </section>
 
       <section class="help-card" aria-label="How it works">
         <h2>How it works</h2>
         <p>
-          On every load, the app picks a secret word, scores five automatic
-          guesses, and verifies the clues leave exactly one answer in its word bank.
+          On every load, the app picks a secret word, opens with a common starter,
+          then uses an entropy-style solver to choose the prefilled clue words.
         </p>
         <div class="legend" aria-label="Tile color legend">
           <span><i class="legend-tile correct"></i> right spot</span>
