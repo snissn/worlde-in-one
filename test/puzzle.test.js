@@ -6,7 +6,9 @@ import {
   TileState,
   buildPuzzleForTarget,
   createPuzzle,
+  honorsLockedClues,
   isSolved,
+  lockedCluesForRows,
   remainingAnswersForRows,
   scoreGuess,
   signature
@@ -45,21 +47,40 @@ test("scores duplicate letters with Wordle-style consumption", () => {
 });
 
 test("solver starts with a common Wordle opener instead of a random probe", () => {
-  assert.equal(buildPuzzleForTarget("study").rows[0].word, "crane");
+  const puzzle = buildPuzzleForTarget("study");
+
+  assert.equal(puzzle.rows[0].word, "crane");
+  assert.ok(puzzle.rows.length < 5, "puzzles do not need padding to guess six");
 });
 
-test("generated puzzles have five filled rows and one remaining answer", () => {
+test("locked clue helper requires green spots and yellow letters", () => {
+  const rows = [{ word: "crane", pattern: scoreGuess("crane", "crown") }];
+  const clues = lockedCluesForRows(rows);
+
+  assert.deepEqual(clues.correctPositions.slice(0, 2), ["c", "r"]);
+  assert.equal(clues.requiredCounts.c, 1);
+  assert.equal(clues.requiredCounts.r, 1);
+  assert.equal(clues.requiredCounts.n, 1);
+  assert.equal(honorsLockedClues("crown", rows), true);
+  assert.equal(honorsLockedClues("cross", rows), false, "must include the yellow N");
+  assert.equal(honorsLockedClues("crony", rows), false, "yellow N cannot stay in the same spot");
+});
+
+test("generated puzzles stop once one answer remains", () => {
   for (let seed = 1; seed <= 75; seed += 1) {
     const puzzle = createPuzzle(seededRandom(seed));
     const remaining = remainingAnswersForRows(puzzle.rows);
+    const beforeLast = remainingAnswersForRows(puzzle.rows.slice(0, -1));
 
-    assert.equal(puzzle.rows.length, 5, `seed ${seed}`);
+    assert.ok(puzzle.rows.length >= 1 && puzzle.rows.length <= 5, `seed ${seed}`);
     assert.deepEqual(remaining, [puzzle.answer], `seed ${seed}`);
-    assert.equal(new Set(puzzle.rows.map((row) => row.word)).size, 5, `seed ${seed}`);
+    assert.ok(beforeLast.length > 1, `seed ${seed} should not include padding guesses`);
+    assert.equal(new Set(puzzle.rows.map((row) => row.word)).size, puzzle.rows.length, `seed ${seed}`);
 
-    for (const row of puzzle.rows) {
+    for (const [index, row] of puzzle.rows.entries()) {
       assert.notEqual(row.word, puzzle.answer, `seed ${seed} should not prefill the answer`);
       assert.equal(row.pattern.length, 5, `seed ${seed}`);
+      assert.equal(honorsLockedClues(row.word, puzzle.rows.slice(0, index)), true, `seed ${seed} row ${index + 1}`);
     }
   }
 });
@@ -70,8 +91,12 @@ test("a broad sample of target words can be made into one-answer boards", () => 
       continue;
     }
 
-    const puzzle = buildPuzzleForTarget(answer, seededRandom(index + 100));
+    const puzzle = buildPuzzleForTarget(answer);
     assert.ok(puzzle, `expected ${answer} to be buildable`);
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [answer]);
+
+    for (const [rowIndex, row] of puzzle.rows.entries()) {
+      assert.equal(honorsLockedClues(row.word, puzzle.rows.slice(0, rowIndex)), true);
+    }
   }
 });

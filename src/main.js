@@ -1,7 +1,6 @@
 import {
   ANSWERS,
   TileState,
-  VALID_GUESSES,
   createPuzzle,
   isSolved,
   isValidGuess,
@@ -27,6 +26,7 @@ const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
 const message = document.querySelector("#message");
 const remainingCount = document.querySelector("#remaining-count");
+const guessNumber = document.querySelector("#guess-number");
 const newPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
 
@@ -236,8 +236,9 @@ renderBoard();
 renderKeyboard();
 updateKeyboard(puzzle.rows);
 remainingCount.textContent = String(remainingAnswersForRows(puzzle.rows).length);
+guessNumber.textContent = `#${puzzle.rows.length + 1}`;
 setMessage(
-  `Exactly one answer remains out of ${ANSWERS.length} answers. Valid guesses: ${VALID_GUESSES.length}.`
+  `Exactly one answer remains out of ${ANSWERS.length} answers. You are on guess #${puzzle.rows.length + 1}.`
 );
 
 document.addEventListener("keydown", (event) => {

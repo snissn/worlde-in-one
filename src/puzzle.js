@@ -128,6 +128,81 @@ export function isSolved(pattern) {
   return pattern.every((state) => state === TileState.CORRECT);
 }
 
+function buildLockedClues(rows) {
+  const correctPositions = Array(5).fill(null);
+  const forbiddenPositions = Array.from({ length: 5 }, () => new Set());
+  const requiredCounts = new Map();
+
+  for (const row of rows) {
+    const word = normalizeWord(row.word);
+    const coloredCounts = new Map();
+
+    for (let i = 0; i < 5; i += 1) {
+      const letter = word[i];
+      const state = row.pattern[i];
+
+      if (state === TileState.CORRECT) {
+        correctPositions[i] = letter;
+        coloredCounts.set(letter, (coloredCounts.get(letter) ?? 0) + 1);
+      } else if (state === TileState.PRESENT) {
+        forbiddenPositions[i].add(letter);
+        coloredCounts.set(letter, (coloredCounts.get(letter) ?? 0) + 1);
+      }
+    }
+
+    for (const [letter, count] of coloredCounts.entries()) {
+      requiredCounts.set(letter, Math.max(requiredCounts.get(letter) ?? 0, count));
+    }
+  }
+
+  return { correctPositions, forbiddenPositions, requiredCounts };
+}
+
+function wordHonorsClues(wordInput, clues) {
+  const word = normalizeWord(wordInput);
+  if (word.length !== 5) {
+    return false;
+  }
+
+  const counts = new Map();
+
+  for (let i = 0; i < 5; i += 1) {
+    const letter = word[i];
+    const required = clues.correctPositions[i];
+
+    if (required && letter !== required) {
+      return false;
+    }
+
+    if (clues.forbiddenPositions[i].has(letter)) {
+      return false;
+    }
+
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  for (const [letter, requiredCount] of clues.requiredCounts.entries()) {
+    if ((counts.get(letter) ?? 0) < requiredCount) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function lockedCluesForRows(rows) {
+  const clues = buildLockedClues(rows);
+  return Object.freeze({
+    correctPositions: Object.freeze([...clues.correctPositions]),
+    forbiddenPositions: Object.freeze(clues.forbiddenPositions.map((positions) => Object.freeze([...positions]))),
+    requiredCounts: Object.freeze(Object.fromEntries(clues.requiredCounts.entries()))
+  });
+}
+
+export function honorsLockedClues(word, rows) {
+  return wordHonorsClues(word, buildLockedClues(rows));
+}
+
 function matchingCandidates(candidates, guess, pattern) {
   const wanted = signature(pattern);
   return candidates.filter((candidate) => signature(scoreGuess(guess, candidate)) === wanted);
@@ -176,13 +251,13 @@ function chooseOpeningGuess(target, used) {
   return null;
 }
 
-function chooseInformationProbe(target, candidates, used, avoidSingleton = false) {
-  const candidateSet = new Set(candidates);
+function chooseInformationProbe(target, candidates, used, rows) {
+  const lockedClues = buildLockedClues(rows);
   let best = null;
   let bestKey = null;
 
-  for (const guess of VALID_GUESSES) {
-    if (guess === target || used.has(guess)) {
+  for (const guess of candidates) {
+    if (guess === target || used.has(guess) || !wordHonorsClues(guess, lockedClues)) {
       continue;
     }
 
@@ -194,49 +269,11 @@ function chooseInformationProbe(target, candidates, used, avoidSingleton = false
       continue;
     }
 
-    const candidatePenalty = candidateSet.has(guess) ? 0 : 1;
-    const singletonPenalty = avoidSingleton && nextCount === 1 ? 1 : 0;
     const key = [
-      singletonPenalty,
       Math.round(metrics.expectedRemaining * 1000),
       metrics.worstBucket,
       nextCount,
-      candidates.length <= 8 ? candidatePenalty : 0,
       -Math.round(metrics.entropy * 1000),
-      -Math.round(wordQuality(guess)),
-      guess
-    ];
-
-    if (compareKeys(key, bestKey) < 0) {
-      best = guess;
-      bestKey = key;
-    }
-  }
-
-  return best;
-}
-
-function chooseNearMissGuess(target, used) {
-  let best = null;
-  let bestKey = null;
-
-  for (const guess of VALID_GUESSES) {
-    if (guess === target || used.has(guess)) {
-      continue;
-    }
-
-    const pattern = scoreGuess(guess, target);
-    if (isSolved(pattern)) {
-      continue;
-    }
-
-    const correct = pattern.filter((state) => state === TileState.CORRECT).length;
-    const present = pattern.filter((state) => state === TileState.PRESENT).length;
-    const repeatedLetters = guess.length - new Set(guess).size;
-    const key = [
-      -(correct * 4 + present * 2),
-      pattern.filter((state) => state === TileState.ABSENT).length,
-      repeatedLetters,
       -Math.round(wordQuality(guess)),
       guess
     ];
@@ -279,7 +316,7 @@ export function buildPuzzleForTarget(targetInput) {
   while (rows.length < 5 && candidates.length > 1) {
     const guess = rows.length === 0
       ? chooseOpeningGuess(target, used)
-      : chooseInformationProbe(target, candidates, used, rows.length < 4);
+      : chooseInformationProbe(target, candidates, used, rows);
 
     if (!guess) {
       return null;
@@ -293,16 +330,6 @@ export function buildPuzzleForTarget(targetInput) {
 
   if (candidates.length !== 1 || candidates[0] !== target) {
     return null;
-  }
-
-  while (rows.length < 5) {
-    const guess = chooseNearMissGuess(target, used);
-    if (!guess) {
-      return null;
-    }
-
-    rows.push({ word: guess, pattern: scoreGuess(guess, target) });
-    used.add(guess);
   }
 
   const remaining = remainingAnswersForRows(rows);

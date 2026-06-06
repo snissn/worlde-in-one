@@ -9,11 +9,11 @@
   <body>
     <main class="app-shell">
       <section class="hero" aria-labelledby="title">
-        <p class="eyebrow">Five guesses are already spent</p>
+        <p class="eyebrow">The clues are already locked in</p>
         <h1 id="title">Wordle in One</h1>
         <p class="lede">
           Reload the page and get a fresh Wordle board that is already narrowed
-          down to exactly <strong>one</strong> possible answer. You get the last row.
+          down to exactly <strong>one</strong> possible answer. You get the next row.
         </p>
       </section>
 
@@ -24,8 +24,8 @@
             <strong id="remaining-count">1</strong>
           </div>
           <div>
-            <span class="stat-label">Guess left</span>
-            <strong>1</strong>
+            <span class="stat-label">Your guess</span>
+            <strong id="guess-number">#?</strong>
           </div>
         </div>
 
@@ -47,7 +47,7 @@
         <h2>How it works</h2>
         <p>
           On every load, the app picks a secret word, opens with a common starter,
-          then uses an entropy-style solver to choose the prefilled clue words.
+          then plays hard-mode-style guesses that keep every locked clue.
         </p>
         <div class="legend" aria-label="Tile color legend">
           <span><i class="legend-tile correct"></i> right spot</span>
