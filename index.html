@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wordle in One</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="title">
+        <p class="eyebrow">Five guesses are already spent</p>
+        <h1 id="title">Wordle in One</h1>
+        <p class="lede">
+          Reload the page and get a fresh Wordle board that is already narrowed
+          down to exactly <strong>one</strong> possible answer. You get the last row.
+        </p>
+      </section>
+
+      <section class="game-card" aria-label="Wordle board">
+        <div class="board-header">
+          <div>
+            <span class="stat-label">Possible answers</span>
+            <strong id="remaining-count">1</strong>
+          </div>
+          <div>
+            <span class="stat-label">Guess left</span>
+            <strong>1</strong>
+          </div>
+        </div>
+
+        <div id="grid" class="grid" aria-live="polite"></div>
+
+        <form id="guess-form" class="guess-form" autocomplete="off">
+          <label for="guess-input">Your final guess</label>
+          <div class="guess-controls">
+            <input
+              id="guess-input"
+              name="guess"
+              inputmode="latin"
+              maxlength="5"
+              pattern="[A-Za-z]{5}"
+              spellcheck="false"
+              aria-describedby="message"
+              autofocus
+            />
+            <button type="submit">Submit</button>
+          </div>
+        </form>
+
+        <p id="message" class="message" role="status">
+          Use the clues above to enter the only word left.
+        </p>
+      </section>
+
+      <section class="help-card" aria-label="How it works">
+        <h2>How it works</h2>
+        <p>
+          On every load, the app picks a secret word, scores five automatic
+          guesses, and verifies the clues leave exactly one answer in its word bank.
+        </p>
+        <div class="legend" aria-label="Tile color legend">
+          <span><i class="legend-tile correct"></i> right spot</span>
+          <span><i class="legend-tile present"></i> wrong spot</span>
+          <span><i class="legend-tile absent"></i> not in word</span>
+        </div>
+        <div class="actions">
+          <button id="new-puzzle" type="button">New puzzle</button>
+          <button id="reveal" type="button" class="secondary">Reveal</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
