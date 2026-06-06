@@ -31,22 +31,10 @@
 
         <div id="grid" class="grid" aria-live="polite"></div>
 
-        <form id="guess-form" class="guess-form" autocomplete="off">
-          <label for="guess-input">Your final guess</label>
-          <div class="guess-controls">
-            <input
-              id="guess-input"
-              name="guess"
-              inputmode="latin"
-              maxlength="5"
-              pattern="[A-Za-z]{5}"
-              spellcheck="false"
-              aria-describedby="message"
-              autofocus
-            />
-            <button type="submit">Submit</button>
-          </div>
-        </form>
+        <div class="guess-panel" aria-label="Final guess controls">
+          <span class="guess-label">Your final guess</span>
+          <p class="guess-hint">Tap letters below, then press Enter on the keyboard.</p>
+        </div>
 
         <p id="message" class="message" role="status">
           Use the clues above to enter the only word left.

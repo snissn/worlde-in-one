@@ -24,17 +24,15 @@ const KEY_STATE_PRIORITY = Object.freeze({
 
 const puzzle = createPuzzle();
 const grid = document.querySelector("#grid");
-const form = document.querySelector("#guess-form");
-const input = document.querySelector("#guess-input");
 const keyboard = document.querySelector("#keyboard");
 const message = document.querySelector("#message");
 const remainingCount = document.querySelector("#remaining-count");
 const newPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
-const submitButton = form.querySelector("button[type='submit']");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
+let guess = "";
 let submitted = false;
 
 function setMessage(text, kind = "info") {
@@ -87,7 +85,7 @@ function renderBoard() {
   }
 
   grid.append(finalRow);
-  updateFinalTiles("");
+  syncGuess("");
 }
 
 function updateFinalTiles(word, pattern = null) {
@@ -110,34 +108,24 @@ function updateFinalTiles(word, pattern = null) {
   }
 }
 
-function currentGuess() {
-  return normalizeWord(input.value);
-}
-
 function syncGuess(rawValue) {
-  const guess = normalizeWord(rawValue);
-  input.value = guess.toUpperCase();
+  guess = normalizeWord(rawValue);
   updateFinalTiles(guess);
   return guess;
 }
 
-function submitGuess(event) {
-  event.preventDefault();
+function submitGuess() {
   if (submitted) {
     return;
   }
 
-  const guess = syncGuess(input.value);
-
   if (guess.length !== 5) {
-    setMessage("Enter a five-letter word.", "error");
-    input.focus();
+    setMessage("Enter a five-letter word before pressing Enter.", "error");
     return;
   }
 
   if (!isValidGuess(guess)) {
     setMessage("That word is not in this clone's guess list.", "error");
-    input.focus();
     return;
   }
 
@@ -145,8 +133,6 @@ function submitGuess(event) {
   updateFinalTiles(guess, pattern);
   updateKeyboard([...puzzle.rows, { word: guess, pattern }]);
   submitted = true;
-  input.disabled = true;
-  submitButton.disabled = true;
   setKeyboardDisabled(true);
 
   if (isSolved(pattern)) {
@@ -232,30 +218,18 @@ function setKeyboardDisabled(disabled) {
   }
 }
 
-function requestSubmitGuess() {
-  if (typeof form.requestSubmit === "function") {
-    form.requestSubmit();
-  } else {
-    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  }
-}
-
 function handleKeyboardAction(action) {
   if (submitted) {
     return;
   }
 
-  const guess = currentGuess();
-
   if (action === "enter") {
-    requestSubmitGuess();
+    submitGuess();
   } else if (action === "backspace") {
     syncGuess(guess.slice(0, -1));
   } else if (guess.length < 5) {
     syncGuess(`${guess}${action}`);
   }
-
-  input.focus();
 }
 
 renderBoard();
@@ -266,36 +240,29 @@ setMessage(
   `Exactly one answer remains out of ${ANSWERS.length} answers. Valid guesses: ${VALID_GUESSES.length}.`
 );
 
-input.addEventListener("input", () => {
-  syncGuess(input.value);
-});
-
 document.addEventListener("keydown", (event) => {
-  if (submitted || document.activeElement === input) {
+  if (submitted) {
     return;
   }
 
   if (event.key === "Enter") {
     event.preventDefault();
-    requestSubmitGuess();
+    submitGuess();
   } else if (event.key === "Backspace") {
     event.preventDefault();
-    syncGuess(currentGuess().slice(0, -1));
-  } else if (/^[a-z]$/i.test(event.key) && currentGuess().length < 5) {
+    syncGuess(guess.slice(0, -1));
+  } else if (/^[a-z]$/i.test(event.key) && guess.length < 5) {
     event.preventDefault();
-    syncGuess(`${currentGuess()}${event.key}`);
+    syncGuess(`${guess}${event.key}`);
   }
 });
 
-form.addEventListener("submit", submitGuess);
 newPuzzleButton.addEventListener("click", () => window.location.reload());
 revealButton.addEventListener("click", () => {
   if (submitted) {
     return;
   }
 
-  input.value = puzzle.answer.toUpperCase();
-  updateFinalTiles(puzzle.answer);
-  setMessage("Answer filled in. Submit it to finish the board.", "success");
-  input.focus();
+  syncGuess(puzzle.answer);
+  setMessage("Answer filled in. Press Enter on the keyboard to finish the board.", "success");
 });

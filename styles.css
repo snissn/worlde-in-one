@@ -32,8 +32,7 @@ body {
     var(--bg);
 }
 
-button,
-input {
+button {
   font: inherit;
 }
 
@@ -187,9 +186,16 @@ h1 {
   border-color: var(--accent);
 }
 
-.guess-form label {
+.guess-panel {
+  padding: 14px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 16px;
+  background: #10131b;
+}
+
+.guess-label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 800;
@@ -197,28 +203,10 @@ h1 {
   text-transform: uppercase;
 }
 
-.guess-controls {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-}
-
-input {
-  min-width: 0;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  color: var(--text);
-  background: #10131b;
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
-input:focus {
-  outline: 2px solid rgb(138 180 248 / 50%);
-  border-color: var(--accent);
+.guess-hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 button {
@@ -386,10 +374,6 @@ button.secondary {
     height: auto;
     aspect-ratio: 1;
     font-size: clamp(1.35rem, 11vw, 1.9rem);
-  }
-
-  .guess-controls {
-    grid-template-columns: 1fr;
   }
 
   .keyboard-row {

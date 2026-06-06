@@ -2,7 +2,7 @@
 
 A tiny static Wordle clone where every page load starts with five guesses already filled in. The generated clues are checked so exactly one answer remains in the app's answer bank, and the player gets the sixth and final guess.
 
-The prefilled rows use a solver-ish strategy: a common opener followed by entropy/minimax-style probe words, with close near-misses when the puzzle has already been narrowed to one answer. The page also includes a Wordle-style on-screen keyboard.
+The prefilled rows use a solver-ish strategy: a common opener followed by entropy/minimax-style probe words, with close near-misses when the puzzle has already been narrowed to one answer. The final guess is entered through the Wordle-style keyboard, including its Enter and backspace keys.
 
 ## Run
 
