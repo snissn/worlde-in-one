@@ -8,6 +8,10 @@
   --correct: #6aaa64;
   --present: #c9b458;
   --absent: #787c7e;
+  --key-unused: #818384;
+  --key-correct: #538d4e;
+  --key-present: #b59f3b;
+  --key-absent: #3a3a3c;
   --accent: #8ab4f8;
   --danger: #ff8a8a;
   --shadow: 0 24px 80px rgb(0 0 0 / 35%);
@@ -253,7 +257,7 @@ button.secondary {
   padding: 0;
   border-radius: 8px;
   color: var(--text);
-  background: #3b4350;
+  background: var(--key-unused);
   font-size: 0.85rem;
   text-transform: uppercase;
 }
@@ -264,15 +268,15 @@ button.secondary {
 }
 
 .key.correct {
-  background: var(--correct);
+  background: var(--key-correct);
 }
 
 .key.present {
-  background: var(--present);
+  background: var(--key-present);
 }
 
 .key.absent {
-  background: var(--absent);
+  background: var(--key-absent);
 }
 
 .key:disabled {
