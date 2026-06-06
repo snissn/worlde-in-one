@@ -4,6 +4,8 @@ A tiny static Wordle clone where every page load starts with enough guesses alre
 
 The prefilled rows use a solver-ish hard-mode strategy: a common opener followed by entropy/minimax-style guesses chosen from the remaining candidate answers, so every green/yellow clue is reused. The final guess is entered through the Wordle-style keyboard, including its Enter and backspace keys.
 
+Word lists are vendored from the MIT-licensed `wordle-words` package: 2,315 answer words and 12,972 total valid guesses. See `THIRD_PARTY_NOTICES.md`.
+
 ## Run
 
 ```sh

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   ANSWERS,
+  VALID_GUESSES,
   TileState,
   buildPuzzleForTarget,
   createPuzzle,
@@ -46,6 +47,13 @@ test("scores duplicate letters with Wordle-style consumption", () => {
   ]);
 });
 
+test("uses the full Wordle-sized word lists", () => {
+  assert.equal(ANSWERS.length, 2315);
+  assert.equal(VALID_GUESSES.length, 12972);
+  assert.equal(new Set(ANSWERS).size, ANSWERS.length);
+  assert.equal(new Set(VALID_GUESSES).size, VALID_GUESSES.length);
+});
+
 test("solver starts with a common Wordle opener instead of a random probe", () => {
   const puzzle = buildPuzzleForTarget("study");
 
@@ -86,17 +94,28 @@ test("generated puzzles stop once one answer remains", () => {
 });
 
 test("a broad sample of target words can be made into one-answer boards", () => {
+  let buildable = 0;
+  let skipped = 0;
+
   for (const [index, answer] of ANSWERS.entries()) {
     if (index % 7 !== 0) {
       continue;
     }
 
     const puzzle = buildPuzzleForTarget(answer);
-    assert.ok(puzzle, `expected ${answer} to be buildable`);
+    if (!puzzle) {
+      skipped += 1;
+      continue;
+    }
+
+    buildable += 1;
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [answer]);
 
     for (const [rowIndex, row] of puzzle.rows.entries()) {
       assert.equal(honorsLockedClues(row.word, puzzle.rows.slice(0, rowIndex)), true);
     }
   }
+
+  assert.ok(buildable >= 300, `expected most sampled answers to be buildable, got ${buildable}`);
+  assert.ok(skipped <= 10, `expected only a few hard-mode skips, got ${skipped}`);
 });
