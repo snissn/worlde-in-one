@@ -170,7 +170,17 @@ function renderKeyboard() {
         keyboardButtons.set(key, button);
       }
 
-      button.addEventListener("click", () => handleKeyboardAction(key));
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        handleKeyboardAction(key);
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          handleKeyboardAction(key);
+        }
+      });
       rowElement.append(button);
     }
 
