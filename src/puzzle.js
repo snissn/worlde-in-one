@@ -8,6 +8,7 @@ export const TileState = Object.freeze({
 
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
+const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 12;
 
 for (const starter of STARTER_WORDS) {
   if (!VALID_GUESS_SET.has(starter)) {
@@ -342,6 +343,116 @@ function difficultyLabelForRank(index, count) {
   return `#${index + 1}`;
 }
 
+function answerDuplicateCount(answer) {
+  return answer.length - new Set(answer).size;
+}
+
+function countConstraintViolations(wordInput, clues) {
+  const word = normalizeWord(wordInput);
+  const counts = new Map();
+  let violations = 0;
+
+  for (let i = 0; i < 5; i += 1) {
+    const letter = word[i];
+    const required = clues.correctPositions[i];
+
+    if (required && letter !== required) {
+      violations += 1;
+    }
+
+    if (clues.forbiddenPositions[i].has(letter)) {
+      violations += 1;
+    }
+
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  for (const [letter, requiredCount] of clues.requiredCounts.entries()) {
+    violations += Math.max(0, requiredCount - (counts.get(letter) ?? 0));
+  }
+
+  return violations;
+}
+
+function puzzleClueFeatures(puzzle, includeNearMisses = false) {
+  const rows = puzzle.rows;
+  const beforeLastCount = rows.length > 1
+    ? remainingAnswersForRows(rows.slice(0, -1)).length
+    : ANSWERS.length;
+  const lockedClues = buildLockedClues(rows);
+  const correctPositions = lockedClues.correctPositions.filter(Boolean).length;
+  const requiredLetters = [...lockedClues.requiredCounts.values()]
+    .reduce((total, count) => total + count, 0);
+  let greenTiles = 0;
+  let yellowTiles = 0;
+  let grayTiles = 0;
+  let maxRowCorrect = 0;
+  let maxRowColored = 0;
+
+  for (const row of rows) {
+    let rowCorrect = 0;
+    let rowColored = 0;
+
+    for (const state of row.pattern) {
+      if (state === TileState.CORRECT) {
+        greenTiles += 1;
+        rowCorrect += 1;
+        rowColored += 1;
+      } else if (state === TileState.PRESENT) {
+        yellowTiles += 1;
+        rowColored += 1;
+      } else {
+        grayTiles += 1;
+      }
+    }
+
+    maxRowCorrect = Math.max(maxRowCorrect, rowCorrect);
+    maxRowColored = Math.max(maxRowColored, rowColored);
+  }
+
+  let oneViolationMisses = 0;
+  let twoViolationMisses = 0;
+  if (includeNearMisses) {
+    for (const answer of ANSWERS) {
+      if (answer === puzzle.answer) {
+        continue;
+      }
+
+      const violations = countConstraintViolations(answer, lockedClues);
+      if (violations <= 1) {
+        oneViolationMisses += 1;
+      }
+      if (violations <= 2) {
+        twoViolationMisses += 1;
+      }
+    }
+  }
+
+  return {
+    rows: rows.length,
+    beforeLastCount,
+    correctPositions,
+    requiredLetters,
+    greenTiles,
+    yellowTiles,
+    grayTiles,
+    maxRowCorrect,
+    maxRowColored,
+    oneViolationMisses,
+    twoViolationMisses,
+    duplicateLetters: answerDuplicateCount(puzzle.answer)
+  };
+}
+
+export function isTrivialPuzzle(puzzle) {
+  const features = puzzleClueFeatures(puzzle);
+
+  return features.correctPositions >= 4 ||
+    (features.correctPositions >= 3 && features.requiredLetters >= 4) ||
+    features.maxRowCorrect >= 4 ||
+    (features.maxRowCorrect >= 3 && features.maxRowColored === 5);
+}
+
 export function remainingAnswersForRows(rows, answers = ANSWERS) {
   return rows.reduce(
     (candidates, row) => matchingCandidates(candidates, row.word, row.pattern),
@@ -350,42 +461,26 @@ export function remainingAnswersForRows(rows, answers = ANSWERS) {
 }
 
 export function difficultyForPuzzle(puzzle) {
-  const rows = puzzle.rows;
-  const beforeLastCount = rows.length > 1
-    ? remainingAnswersForRows(rows.slice(0, -1)).length
-    : ANSWERS.length;
-  const lockedClues = buildLockedClues(rows);
-  const correctPositions = lockedClues.correctPositions.filter(Boolean).length;
-  let greenTiles = 0;
-  let yellowTiles = 0;
-  let grayTiles = 0;
-
-  for (const row of rows) {
-    for (const state of row.pattern) {
-      if (state === TileState.CORRECT) {
-        greenTiles += 1;
-      } else if (state === TileState.PRESENT) {
-        yellowTiles += 1;
-      } else {
-        grayTiles += 1;
-      }
-    }
-  }
-
-  const requiredLetters = [...lockedClues.requiredCounts.values()]
-    .reduce((total, count) => total + count, 0);
-  const clusterPenalty = Math.round(Math.log2(Math.max(1, beforeLastCount)) * 100);
-  const clueBonus = (correctPositions * 55) + (requiredLetters * 25) + (greenTiles * 6) + (yellowTiles * 3);
-  const score = (rows.length * 1000) + clusterPenalty - clueBonus + grayTiles;
+  const features = puzzleClueFeatures(puzzle, true);
+  const unknownPositions = 5 - features.correctPositions;
+  const unknownLetters = 5 - features.requiredLetters;
+  const score = Math.round(
+    (unknownLetters * 420) +
+    (unknownPositions * 260) +
+    (Math.log2(features.beforeLastCount + 1) * 180) +
+    (Math.log2(features.twoViolationMisses + 1) * 280) +
+    (features.oneViolationMisses * 55) +
+    (features.rows * 90) +
+    (features.duplicateLetters * 220) -
+    (features.greenTiles * 8) -
+    (features.yellowTiles * 5)
+  );
 
   return Object.freeze({
     score,
-    rows: rows.length,
-    beforeLastCount,
-    correctPositions,
-    requiredLetters,
-    greenTiles,
-    yellowTiles
+    ...features,
+    unknownLetters,
+    unknownPositions
   });
 }
 
@@ -423,11 +518,17 @@ export function buildPuzzleForTarget(targetInput) {
     return null;
   }
 
-  return Object.freeze({
+  const puzzle = Object.freeze({
     answer: target,
     rows: Object.freeze(rows.map((row) => Object.freeze({ ...row, pattern: Object.freeze([...row.pattern]) }))),
     remaining: Object.freeze(remaining)
   });
+
+  if (isTrivialPuzzle(puzzle)) {
+    return null;
+  }
+
+  return puzzle;
 }
 
 export function createPuzzle(rng = Math.random) {
@@ -441,10 +542,51 @@ export function createPuzzle(rng = Math.random) {
   throw new Error("Could not generate a one-answer Wordle puzzle");
 }
 
-export function createDailyPuzzles(date = new Date(), count = 5) {
+function selectDifficultySpread(puzzles, count) {
+  const sorted = [...puzzles].sort((left, right) => compareKeys(
+    [left.difficulty.score, left.answer],
+    [right.difficulty.score, right.answer]
+  ));
+  const quantiles = count === 5
+    ? [0.08, 0.30, 0.50, 0.70, 0.92]
+    : Array.from({ length: count }, (_, index) => (index + 0.5) / count);
+  const selected = [];
+  const used = new Set();
+
+  for (const quantile of quantiles) {
+    const preferred = Math.round(quantile * (sorted.length - 1));
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+
+    for (let index = 0; index < sorted.length; index += 1) {
+      if (used.has(index)) {
+        continue;
+      }
+
+      const distance = Math.abs(index - preferred);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    }
+
+    if (bestIndex !== -1) {
+      used.add(bestIndex);
+      selected.push(sorted[bestIndex]);
+    }
+  }
+
+  return selected.sort((left, right) => compareKeys(
+    [left.difficulty.score, left.answer],
+    [right.difficulty.score, right.answer]
+  ));
+}
+
+export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   const dateKey = dateKeyForPuzzle(date);
   const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
-  const puzzles = [];
+  const poolSize = options.poolSize ?? Math.max(DEFAULT_DAILY_CANDIDATE_POOL_SIZE, count * 2);
+  const pool = [];
 
   for (const target of shuffled(ANSWERS, rng)) {
     const puzzle = buildPuzzleForTarget(target);
@@ -452,24 +594,21 @@ export function createDailyPuzzles(date = new Date(), count = 5) {
       continue;
     }
 
-    puzzles.push({
+    pool.push({
       ...puzzle,
       difficulty: difficultyForPuzzle(puzzle)
     });
 
-    if (puzzles.length === count) {
+    if (pool.length === poolSize) {
       break;
     }
   }
 
-  if (puzzles.length !== count) {
-    throw new Error(`Could only generate ${puzzles.length} daily puzzles for ${dateKey}`);
+  if (pool.length < count) {
+    throw new Error(`Could only generate ${pool.length} daily puzzles for ${dateKey}`);
   }
 
-  puzzles.sort((left, right) => compareKeys(
-    [left.difficulty.score, left.answer],
-    [right.difficulty.score, right.answer]
-  ));
+  const puzzles = selectDifficultySpread(pool, count);
 
   return Object.freeze({
     dateKey,

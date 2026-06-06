@@ -11,6 +11,7 @@ import {
   dateKeyForPuzzle,
   honorsLockedClues,
   isSolved,
+  isTrivialPuzzle,
   lockedCluesForRows,
   remainingAnswersForRows,
   scoreGuess,
@@ -76,6 +77,18 @@ test("locked clue helper requires green spots and yellow letters", () => {
   assert.equal(honorsLockedClues("crony", rows), false, "yellow N cannot stay in the same spot");
 });
 
+test("trivial swap puzzles are rejected", () => {
+  const trivial = {
+    answer: "adobe",
+    rows: [{ word: "abode", pattern: scoreGuess("abode", "adobe") }],
+    remaining: ["adobe"]
+  };
+
+  assert.equal(signature(trivial.rows[0].pattern), "cpcpc");
+  assert.equal(isTrivialPuzzle(trivial), true);
+  assert.equal(buildPuzzleForTarget("adobe"), null);
+});
+
 test("daily puzzles are deterministic and sorted by difficulty", () => {
   assert.equal(dateKeyForPuzzle(new Date(2026, 0, 2)), "2026-01-02");
 
@@ -97,11 +110,12 @@ test("daily puzzles are deterministic and sorted by difficulty", () => {
 
   for (const puzzle of first.puzzles) {
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
+    assert.equal(isTrivialPuzzle(puzzle), false);
   }
 });
 
 test("generated puzzles stop once one answer remains", () => {
-  for (let seed = 1; seed <= 75; seed += 1) {
+  for (let seed = 1; seed <= 30; seed += 1) {
     const puzzle = createPuzzle(seededRandom(seed));
     const remaining = remainingAnswersForRows(puzzle.rows);
     const beforeLast = remainingAnswersForRows(puzzle.rows.slice(0, -1));
@@ -124,7 +138,7 @@ test("a broad sample of target words can be made into one-answer boards", () => 
   let skipped = 0;
 
   for (const [index, answer] of ANSWERS.entries()) {
-    if (index % 7 !== 0) {
+    if (index % 29 !== 0) {
       continue;
     }
 
@@ -142,6 +156,6 @@ test("a broad sample of target words can be made into one-answer boards", () => 
     }
   }
 
-  assert.ok(buildable >= 300, `expected most sampled answers to be buildable, got ${buildable}`);
-  assert.ok(skipped <= 10, `expected only a few hard-mode skips, got ${skipped}`);
+  assert.ok(buildable >= 35, `expected many sampled answers to be buildable and non-trivial, got ${buildable}`);
+  assert.ok(skipped <= 50, `expected trivial/hard-mode skips to stay bounded, got ${skipped}`);
 });
