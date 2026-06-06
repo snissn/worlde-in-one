@@ -380,6 +380,10 @@ button.secondary {
   opacity: 0.72;
 }
 
+.key.correct:disabled {
+  opacity: 1;
+}
+
 .message {
   min-height: 1.5em;
   margin: 14px 0 0;

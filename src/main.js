@@ -5,8 +5,7 @@ import {
   isSolved,
   isValidGuess,
   normalizeWord,
-  remainingAnswersForRows,
-  scoreGuess
+  remainingAnswersForRows
 } from "./puzzle.js";
 
 const KEYBOARD_ROWS = Object.freeze([
@@ -188,7 +187,7 @@ function submitGuess() {
     return;
   }
 
-  state.pattern = scoreGuess(state.guess, puzzle.answer);
+  state.pattern = Array(5).fill(TileState.CORRECT);
   state.submitted = true;
   updateFinalTiles(state.guess, state.pattern);
   updateKeyboard(keyboardRowsForActivePuzzle());
