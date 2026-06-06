@@ -9,6 +9,11 @@ export const TileState = Object.freeze({
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
 const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 12;
+const SCRABBLE_POINTS = Object.freeze({
+  a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
+  j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
+  s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10
+});
 
 for (const starter of STARTER_WORDS) {
   if (!VALID_GUESS_SET.has(starter)) {
@@ -80,6 +85,11 @@ export function normalizeWord(input) {
 
 export function isValidGuess(word) {
   return VALID_GUESS_SET.has(normalizeWord(word));
+}
+
+export function scrabbleScoreForWord(wordInput) {
+  return [...normalizeWord(wordInput)]
+    .reduce((score, letter) => score + (SCRABBLE_POINTS[letter] ?? 0), 0);
 }
 
 export function scoreGuess(guessInput, answerInput) {
@@ -464,6 +474,7 @@ export function difficultyForPuzzle(puzzle) {
   const features = puzzleClueFeatures(puzzle, true);
   const unknownPositions = 5 - features.correctPositions;
   const unknownLetters = 5 - features.requiredLetters;
+  const scrabbleScore = scrabbleScoreForWord(puzzle.answer);
   const score = Math.round(
     (unknownLetters * 420) +
     (unknownPositions * 260) +
@@ -471,7 +482,8 @@ export function difficultyForPuzzle(puzzle) {
     (Math.log2(features.twoViolationMisses + 1) * 280) +
     (features.oneViolationMisses * 55) +
     (features.rows * 90) +
-    (features.duplicateLetters * 220) -
+    (features.duplicateLetters * 220) +
+    (scrabbleScore * 400) -
     (features.greenTiles * 8) -
     (features.yellowTiles * 5)
   );
@@ -480,7 +492,8 @@ export function difficultyForPuzzle(puzzle) {
     score,
     ...features,
     unknownLetters,
-    unknownPositions
+    unknownPositions,
+    scrabbleScore
   });
 }
 

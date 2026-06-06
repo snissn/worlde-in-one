@@ -9,12 +9,14 @@ import {
   createDailyPuzzles,
   createPuzzle,
   dateKeyForPuzzle,
+  difficultyForPuzzle,
   honorsLockedClues,
   isSolved,
   isTrivialPuzzle,
   lockedCluesForRows,
   remainingAnswersForRows,
   scoreGuess,
+  scrabbleScoreForWord,
   signature
 } from "../src/puzzle.js";
 
@@ -55,6 +57,16 @@ test("uses the full Wordle-sized word lists", () => {
   assert.equal(VALID_GUESSES.length, 12972);
   assert.equal(new Set(ANSWERS).size, ANSWERS.length);
   assert.equal(new Set(VALID_GUESSES).size, VALID_GUESSES.length);
+});
+
+test("difficulty includes Scrabble letter values", () => {
+  assert.equal(scrabbleScoreForWord("jewel"), 15);
+  assert.equal(scrabbleScoreForWord("llama"), 7);
+
+  const jewel = difficultyForPuzzle({ answer: "jewel", rows: [] });
+  const llama = difficultyForPuzzle({ answer: "llama", rows: [] });
+
+  assert.ok(jewel.score > llama.score, "higher Scrabble words should sort harder when clues are tied");
 });
 
 test("solver starts with a common Wordle opener instead of a random probe", () => {
