@@ -6,7 +6,9 @@ import {
   VALID_GUESSES,
   TileState,
   buildPuzzleForTarget,
+  createDailyPuzzles,
   createPuzzle,
+  dateKeyForPuzzle,
   honorsLockedClues,
   isSolved,
   lockedCluesForRows,
@@ -72,6 +74,30 @@ test("locked clue helper requires green spots and yellow letters", () => {
   assert.equal(honorsLockedClues("crown", rows), true);
   assert.equal(honorsLockedClues("cross", rows), false, "must include the yellow N");
   assert.equal(honorsLockedClues("crony", rows), false, "yellow N cannot stay in the same spot");
+});
+
+test("daily puzzles are deterministic and sorted by difficulty", () => {
+  assert.equal(dateKeyForPuzzle(new Date(2026, 0, 2)), "2026-01-02");
+
+  const first = createDailyPuzzles("2026-06-05", 5);
+  const second = createDailyPuzzles("2026-06-05", 5);
+  const nextDay = createDailyPuzzles("2026-06-06", 5);
+
+  assert.equal(first.dateKey, "2026-06-05");
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
+  assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), nextDay.puzzles.map((puzzle) => puzzle.answer));
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), ["Easy", "Medium", "Tricky", "Hard", "Expert"]);
+
+  for (let i = 1; i < first.puzzles.length; i += 1) {
+    assert.ok(
+      first.puzzles[i - 1].difficulty.score <= first.puzzles[i].difficulty.score,
+      "daily puzzles should be easiest to hardest"
+    );
+  }
+
+  for (const puzzle of first.puzzles) {
+    assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
+  }
 });
 
 test("generated puzzles stop once one answer remains", () => {

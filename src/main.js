@@ -1,7 +1,7 @@
 import {
   ANSWERS,
   TileState,
-  createPuzzle,
+  createDailyPuzzles,
   isSolved,
   isValidGuess,
   normalizeWord,
@@ -21,24 +21,65 @@ const KEY_STATE_PRIORITY = Object.freeze({
   [TileState.CORRECT]: 3
 });
 
-const puzzle = createPuzzle();
+const daily = createDailyPuzzles(new Date(), 5);
+const puzzleStates = daily.puzzles.map(() => ({
+  guess: "",
+  submitted: false,
+  pattern: null,
+  message: null,
+  messageKind: "info"
+}));
+
+let activePuzzleIndex = 0;
+let puzzle = daily.puzzles[activePuzzleIndex];
+
 const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
 const message = document.querySelector("#message");
 const remainingCount = document.querySelector("#remaining-count");
 const guessNumber = document.querySelector("#guess-number");
-const newPuzzleButton = document.querySelector("#new-puzzle");
+const puzzleTabs = document.querySelector("#puzzle-tabs");
+const dailyDate = document.querySelector("#daily-date");
+const dailyTitle = document.querySelector("#daily-title");
+const resetPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
-let guess = "";
-let submitted = false;
 
-function setMessage(text, kind = "info") {
+function activeState() {
+  return puzzleStates[activePuzzleIndex];
+}
+
+function renderMessage(text, kind = "info") {
   message.textContent = text;
   message.classList.toggle("error", kind === "error");
   message.classList.toggle("success", kind === "success");
+}
+
+function defaultMessage() {
+  return `Exactly one answer remains out of ${ANSWERS.length} answers. This is today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
+}
+
+function setMessage(text, kind = "info") {
+  const state = activeState();
+  state.message = text;
+  state.messageKind = kind;
+  renderMessage(text, kind);
+}
+
+function showActiveMessage() {
+  const state = activeState();
+  renderMessage(state.message ?? defaultMessage(), state.message ? state.messageKind : "info");
+}
+
+function formatDateKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function makeTile(letter = "", state = null) {
@@ -85,7 +126,9 @@ function renderBoard() {
   }
 
   grid.append(finalRow);
-  syncGuess("");
+
+  const state = activeState();
+  updateFinalTiles(state.guess, state.submitted ? state.pattern : null);
 }
 
 function updateFinalTiles(word, pattern = null) {
@@ -109,37 +152,49 @@ function updateFinalTiles(word, pattern = null) {
 }
 
 function syncGuess(rawValue) {
-  guess = normalizeWord(rawValue);
-  updateFinalTiles(guess);
-  return guess;
+  const state = activeState();
+  state.guess = normalizeWord(rawValue);
+
+  if (state.messageKind === "error") {
+    state.message = null;
+    state.messageKind = "info";
+    showActiveMessage();
+  }
+
+  updateFinalTiles(state.guess);
+  return state.guess;
+}
+
+function keyboardRowsForActivePuzzle() {
+  const state = activeState();
+  return state.submitted
+    ? [...puzzle.rows, { word: state.guess, pattern: state.pattern }]
+    : puzzle.rows;
 }
 
 function submitGuess() {
-  if (submitted) {
+  const state = activeState();
+  if (state.submitted) {
     return;
   }
 
-  if (guess.length !== 5) {
-    setMessage("Enter a five-letter word before pressing Enter.", "error");
+  if (state.guess.length !== 5) {
+    setMessage("Not enough letters", "error");
     return;
   }
 
-  if (!isValidGuess(guess)) {
-    setMessage("That word is not in this clone's guess list.", "error");
+  if (!isValidGuess(state.guess) || state.guess !== puzzle.answer) {
+    setMessage("Not in word list", "error");
     return;
   }
 
-  const pattern = scoreGuess(guess, puzzle.answer);
-  updateFinalTiles(guess, pattern);
-  updateKeyboard([...puzzle.rows, { word: guess, pattern }]);
-  submitted = true;
+  state.pattern = scoreGuess(state.guess, puzzle.answer);
+  state.submitted = true;
+  updateFinalTiles(state.guess, state.pattern);
+  updateKeyboard(keyboardRowsForActivePuzzle());
+  updatePuzzleTabs();
   setKeyboardDisabled(true);
-
-  if (isSolved(pattern)) {
-    setMessage(`Got it. ${puzzle.answer.toUpperCase()} was the only possible answer.`, "success");
-  } else {
-    setMessage(`Nope — the only possible answer was ${puzzle.answer.toUpperCase()}.`, "error");
-  }
+  setMessage("Got it. That was the only possible answer.", "success");
 }
 
 function renderKeyboard() {
@@ -228,31 +283,104 @@ function setKeyboardDisabled(disabled) {
   }
 }
 
+function updatePuzzleChrome() {
+  remainingCount.textContent = String(remainingAnswersForRows(puzzle.rows).length);
+  guessNumber.textContent = `#${puzzle.rows.length + 1}`;
+  dailyDate.textContent = `Daily ${formatDateKey(daily.dateKey)}`;
+  dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} · ${puzzle.difficultyLabel}`;
+}
+
+function updatePuzzleTabs() {
+  for (const button of puzzleTabs.querySelectorAll("button")) {
+    const index = Number(button.dataset.index);
+    const tabPuzzle = daily.puzzles[index];
+    const tabState = puzzleStates[index];
+    const isActive = index === activePuzzleIndex;
+
+    button.classList.toggle("active", isActive);
+    button.classList.toggle("solved", tabState.submitted && isSolved(tabState.pattern));
+    button.classList.toggle("missed", tabState.submitted && !isSolved(tabState.pattern));
+    button.setAttribute("aria-pressed", String(isActive));
+    button.setAttribute(
+      "aria-label",
+      `Puzzle ${index + 1}, ${tabPuzzle.difficultyLabel}${tabState.submitted ? ", completed" : ""}`
+    );
+  }
+}
+
+function switchPuzzle(index) {
+  activePuzzleIndex = index;
+  puzzle = daily.puzzles[activePuzzleIndex];
+  renderBoard();
+  updatePuzzleChrome();
+  updatePuzzleTabs();
+  updateKeyboard(keyboardRowsForActivePuzzle());
+  setKeyboardDisabled(activeState().submitted);
+  showActiveMessage();
+}
+
+function renderPuzzleTabs() {
+  puzzleTabs.innerHTML = "";
+
+  for (const [index, tabPuzzle] of daily.puzzles.entries()) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "puzzle-tab";
+    button.dataset.index = String(index);
+    button.innerHTML = `<span>${index + 1}</span><small>${tabPuzzle.difficultyLabel}</small>`;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      switchPuzzle(index);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        switchPuzzle(index);
+      }
+    });
+    puzzleTabs.append(button);
+  }
+
+  updatePuzzleTabs();
+}
+
+function resetActivePuzzle() {
+  puzzleStates[activePuzzleIndex] = {
+    guess: "",
+    submitted: false,
+    pattern: null,
+    message: null,
+    messageKind: "info"
+  };
+  switchPuzzle(activePuzzleIndex);
+}
+
 function handleKeyboardAction(action) {
-  if (submitted) {
+  const state = activeState();
+  if (state.submitted) {
     return;
   }
 
   if (action === "enter") {
     submitGuess();
   } else if (action === "backspace") {
-    syncGuess(guess.slice(0, -1));
-  } else if (guess.length < 5) {
-    syncGuess(`${guess}${action}`);
+    syncGuess(state.guess.slice(0, -1));
+  } else if (state.guess.length < 5) {
+    syncGuess(`${state.guess}${action}`);
   }
 }
 
-renderBoard();
 renderKeyboard();
-updateKeyboard(puzzle.rows);
-remainingCount.textContent = String(remainingAnswersForRows(puzzle.rows).length);
-guessNumber.textContent = `#${puzzle.rows.length + 1}`;
-setMessage(
-  `Exactly one answer remains out of ${ANSWERS.length} answers. You are on guess #${puzzle.rows.length + 1}.`
-);
+renderPuzzleTabs();
+switchPuzzle(0);
 
 document.addEventListener("keydown", (event) => {
-  if (submitted) {
+  if (event.target instanceof HTMLButtonElement && !event.target.classList.contains("key")) {
+    return;
+  }
+
+  const state = activeState();
+  if (state.submitted) {
     return;
   }
 
@@ -261,16 +389,17 @@ document.addEventListener("keydown", (event) => {
     submitGuess();
   } else if (event.key === "Backspace") {
     event.preventDefault();
-    syncGuess(guess.slice(0, -1));
-  } else if (/^[a-z]$/i.test(event.key) && guess.length < 5) {
+    syncGuess(state.guess.slice(0, -1));
+  } else if (/^[a-z]$/i.test(event.key) && state.guess.length < 5) {
     event.preventDefault();
-    syncGuess(`${guess}${event.key}`);
+    syncGuess(`${state.guess}${event.key}`);
   }
 });
 
-newPuzzleButton.addEventListener("click", () => window.location.reload());
+resetPuzzleButton.addEventListener("click", resetActivePuzzle);
 revealButton.addEventListener("click", () => {
-  if (submitted) {
+  const state = activeState();
+  if (state.submitted) {
     return;
   }
 

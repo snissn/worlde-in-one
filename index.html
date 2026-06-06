@@ -12,8 +12,8 @@
         <p class="eyebrow">The clues are already locked in</p>
         <h1 id="title">Wordle in One</h1>
         <p class="lede">
-          Reload the page and get a fresh Wordle board that is already narrowed
-          down to exactly <strong>one</strong> possible answer. You get the next row.
+          Every calendar day has five deterministic puzzles, each already
+          narrowed down to exactly <strong>one</strong> possible answer.
         </p>
       </section>
 
@@ -29,10 +29,15 @@
           </div>
         </div>
 
+        <div class="daily-panel" aria-label="Daily puzzle selector">
+          <span id="daily-date" class="stat-label">Daily</span>
+          <div id="puzzle-tabs" class="puzzle-tabs"></div>
+        </div>
+
         <div id="grid" class="grid" aria-live="polite"></div>
 
         <div class="guess-panel" aria-label="Final guess controls">
-          <span class="guess-label">Your final guess</span>
+          <span id="daily-title" class="guess-label">Puzzle 1 of 5</span>
           <p class="guess-hint">Tap letters below, then press Enter on the keyboard.</p>
         </div>
 
@@ -46,8 +51,8 @@
       <section class="help-card" aria-label="How it works">
         <h2>How it works</h2>
         <p>
-          On every load, the app picks a secret word, opens with a common starter,
-          then plays hard-mode-style guesses that keep every locked clue.
+          The date seeds the same five puzzles for everyone that day. A difficulty
+          heuristic sorts them easiest to hardest before you play.
         </p>
         <div class="legend" aria-label="Tile color legend">
           <span><i class="legend-tile correct"></i> right spot</span>
@@ -55,7 +60,7 @@
           <span><i class="legend-tile absent"></i> not in word</span>
         </div>
         <div class="actions">
-          <button id="new-puzzle" type="button">New puzzle</button>
+          <button id="new-puzzle" type="button">Reset current</button>
           <button id="reveal" type="button" class="secondary">Reveal</button>
         </div>
       </section>

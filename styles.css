@@ -200,6 +200,59 @@ h1 {
   border-color: var(--accent);
 }
 
+.daily-panel {
+  padding: 14px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 16px;
+  background: var(--panel-2);
+}
+
+.puzzle-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.puzzle-tab {
+  min-width: 0;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--text);
+  background: #303747;
+  line-height: 1.05;
+}
+
+.puzzle-tab span,
+.puzzle-tab small {
+  display: block;
+}
+
+.puzzle-tab span {
+  font-size: 1.05rem;
+}
+
+.puzzle-tab small {
+  margin-top: 4px;
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.puzzle-tab.active {
+  border-color: var(--accent);
+  background: #40506a;
+}
+
+.puzzle-tab.solved {
+  background: var(--correct);
+}
+
+.puzzle-tab.missed {
+  background: var(--absent);
+}
+
 .guess-panel {
   padding: 14px;
   border: 1px solid rgb(255 255 255 / 8%);
@@ -237,6 +290,10 @@ button {
 button:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
+}
+
+.puzzle-tab:hover:not(:disabled) {
+  transform: none;
 }
 
 button:disabled {

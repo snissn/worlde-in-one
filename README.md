@@ -1,8 +1,8 @@
 # Wordle in One
 
-A tiny static Wordle clone where every page load starts with enough guesses already filled in to leave exactly one possible answer in the app's answer bank. The player gets the next guess, which may be earlier than guess six.
+A tiny static Wordle clone where every calendar day has five deterministic puzzles. Each puzzle starts with enough guesses already filled in to leave exactly one possible answer in the app's answer bank. The player gets the next guess, which may be earlier than guess six.
 
-The prefilled rows use a solver-ish hard-mode strategy: a common opener followed by entropy/minimax-style guesses chosen from the remaining candidate answers, so every green/yellow clue is reused. The final guess is entered through the Wordle-style keyboard, including its Enter and backspace keys.
+The prefilled rows use a solver-ish hard-mode strategy: a common opener followed by entropy/minimax-style guesses chosen from the remaining candidate answers, so every green/yellow clue is reused. The five daily puzzles are scored with a small difficulty heuristic and sorted easiest to hardest. The final guess is entered through the Wordle-style keyboard, including its Enter and backspace keys.
 
 Word lists are vendored from the MIT-licensed `wordle-words` package: 2,315 answer words and 12,972 total valid guesses. See `THIRD_PARTY_NOTICES.md`.
 

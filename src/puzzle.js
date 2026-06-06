@@ -296,11 +296,97 @@ function shuffled(words, rng) {
   return copy;
 }
 
+function hashString(input) {
+  let hash = 2166136261;
+
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+export function seededRandomFromString(input) {
+  let value = hashString(input);
+
+  return () => {
+    value += 0x6d2b79f5;
+    let mixed = value;
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function dateKeyForPuzzle(date = new Date()) {
+  if (typeof date === "string") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`Date keys must look like YYYY-MM-DD: ${date}`);
+    }
+
+    return date;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function difficultyLabelForRank(index, count) {
+  if (count === 5) {
+    return ["Easy", "Medium", "Tricky", "Hard", "Expert"][index];
+  }
+
+  return `#${index + 1}`;
+}
+
 export function remainingAnswersForRows(rows, answers = ANSWERS) {
   return rows.reduce(
     (candidates, row) => matchingCandidates(candidates, row.word, row.pattern),
     [...answers]
   );
+}
+
+export function difficultyForPuzzle(puzzle) {
+  const rows = puzzle.rows;
+  const beforeLastCount = rows.length > 1
+    ? remainingAnswersForRows(rows.slice(0, -1)).length
+    : ANSWERS.length;
+  const lockedClues = buildLockedClues(rows);
+  const correctPositions = lockedClues.correctPositions.filter(Boolean).length;
+  let greenTiles = 0;
+  let yellowTiles = 0;
+  let grayTiles = 0;
+
+  for (const row of rows) {
+    for (const state of row.pattern) {
+      if (state === TileState.CORRECT) {
+        greenTiles += 1;
+      } else if (state === TileState.PRESENT) {
+        yellowTiles += 1;
+      } else {
+        grayTiles += 1;
+      }
+    }
+  }
+
+  const requiredLetters = [...lockedClues.requiredCounts.values()]
+    .reduce((total, count) => total + count, 0);
+  const clusterPenalty = Math.round(Math.log2(Math.max(1, beforeLastCount)) * 100);
+  const clueBonus = (correctPositions * 55) + (requiredLetters * 25) + (greenTiles * 6) + (yellowTiles * 3);
+  const score = (rows.length * 1000) + clusterPenalty - clueBonus + grayTiles;
+
+  return Object.freeze({
+    score,
+    rows: rows.length,
+    beforeLastCount,
+    correctPositions,
+    requiredLetters,
+    greenTiles,
+    yellowTiles
+  });
 }
 
 export function buildPuzzleForTarget(targetInput) {
@@ -353,6 +439,46 @@ export function createPuzzle(rng = Math.random) {
   }
 
   throw new Error("Could not generate a one-answer Wordle puzzle");
+}
+
+export function createDailyPuzzles(date = new Date(), count = 5) {
+  const dateKey = dateKeyForPuzzle(date);
+  const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
+  const puzzles = [];
+
+  for (const target of shuffled(ANSWERS, rng)) {
+    const puzzle = buildPuzzleForTarget(target);
+    if (!puzzle) {
+      continue;
+    }
+
+    puzzles.push({
+      ...puzzle,
+      difficulty: difficultyForPuzzle(puzzle)
+    });
+
+    if (puzzles.length === count) {
+      break;
+    }
+  }
+
+  if (puzzles.length !== count) {
+    throw new Error(`Could only generate ${puzzles.length} daily puzzles for ${dateKey}`);
+  }
+
+  puzzles.sort((left, right) => compareKeys(
+    [left.difficulty.score, left.answer],
+    [right.difficulty.score, right.answer]
+  ));
+
+  return Object.freeze({
+    dateKey,
+    puzzles: Object.freeze(puzzles.map((puzzle, index) => Object.freeze({
+      ...puzzle,
+      dailyNumber: index + 1,
+      difficultyLabel: difficultyLabelForRank(index, count)
+    })))
+  });
 }
 
 export { ANSWERS, VALID_GUESSES };
