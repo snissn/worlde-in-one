@@ -144,14 +144,15 @@ h1 {
 .grid {
   width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-  justify-content: center;
   margin: 24px 0 28px;
 }
 
 .word-row {
   display: grid;
   grid-template-columns: repeat(5, 64px);
+  justify-content: center;
   gap: 10px;
 }
 
@@ -160,7 +161,8 @@ h1 {
   height: 64px;
   display: grid;
   place-items: center;
-  border: 2px solid var(--line);
+  border: 0;
+  box-shadow: inset 0 0 0 2px var(--tile-border, var(--line));
   color: var(--text);
   background: transparent;
   font-size: 2.32rem;
@@ -171,38 +173,41 @@ h1 {
 }
 
 .tile.filled:not(.correct):not(.present):not(.absent) {
-  border-color: #5a6170;
+  --tile-border: #5a6170;
 }
 
 .tile.correct,
 .legend-tile.correct {
+  --tile-border: var(--correct);
   border-color: var(--correct);
   background: var(--correct);
 }
 
 .tile.present,
 .legend-tile.present {
+  --tile-border: var(--present);
   border-color: var(--present);
   background: var(--present);
 }
 
 .tile.absent,
 .legend-tile.absent {
+  --tile-border: var(--absent);
   border-color: var(--absent);
   background: var(--absent);
 }
 
 .final-row .tile {
-  border-color: #5b6475;
+  --tile-border: #5b6475;
   background: rgb(255 255 255 / 3%);
 }
 
 .final-row .tile.active {
-  border-color: var(--accent);
+  --tile-border: var(--accent);
 }
 
 .final-row .tile.correct {
-  border-color: var(--correct);
+  --tile-border: var(--correct);
   background: var(--correct);
 }
 
@@ -469,6 +474,26 @@ button.secondary {
   }
 }
 
+@media (max-width: 600px) {
+  .grid {
+    width: min(100%, 370px);
+    margin-inline: auto;
+  }
+
+  .word-row {
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .tile {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    font-size: clamp(1.9rem, 13vw, 2.35rem);
+  }
+}
+
 @media (max-width: 430px) {
   h1 {
     font-size: clamp(2.6rem, 12vw, 3rem);
@@ -505,23 +530,6 @@ button.secondary {
   .daily-panel,
   .guess-panel {
     padding: 14px;
-  }
-
-  .grid,
-  .word-row {
-    width: 100%;
-  }
-
-  .word-row {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .tile {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-    font-size: clamp(1.6rem, 12vw, 2.2rem);
   }
 
   .keyboard-row {
