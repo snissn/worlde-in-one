@@ -49,14 +49,15 @@ button {
 }
 
 .app-shell {
-  width: min(1080px, 100%);
+  width: min(1240px, 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 48px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left));
+  padding: clamp(56px, 6vh, 96px) max(24px, env(safe-area-inset-right)) clamp(56px, 6vh, 96px) max(24px, env(safe-area-inset-left));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 28px;
+  grid-template-columns: minmax(420px, 620px) minmax(440px, 480px);
+  gap: clamp(40px, 5vw, 80px);
   align-items: center;
+  justify-content: center;
 }
 
 .hero,
@@ -70,7 +71,7 @@ button {
 }
 
 .hero {
-  padding: clamp(28px, 5vw, 56px);
+  padding: clamp(36px, 5vw, 64px);
 }
 
 .eyebrow {
@@ -109,18 +110,18 @@ h1 {
 }
 
 .game-card {
-  padding: 22px;
+  padding: 28px;
 }
 
 .board-header {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .board-header > div {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 16px;
   background: var(--panel-2);
@@ -143,26 +144,26 @@ h1 {
 .grid {
   width: 100%;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
-  margin: 16px 0 22px;
+  margin: 24px 0 28px;
 }
 
 .word-row {
   display: grid;
-  grid-template-columns: repeat(5, 58px);
-  gap: 8px;
+  grid-template-columns: repeat(5, 64px);
+  gap: 10px;
 }
 
 .tile {
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   display: grid;
   place-items: center;
   border: 2px solid var(--line);
   color: var(--text);
   background: transparent;
-  font-size: 2.08rem;
+  font-size: 2.32rem;
   font-weight: 900;
   line-height: 1;
   text-transform: uppercase;
@@ -206,7 +207,7 @@ h1 {
 }
 
 .daily-panel {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 16px;
   background: var(--panel-2);
@@ -259,7 +260,7 @@ h1 {
 }
 
 .guess-panel {
-  padding: 14px;
+  padding: 18px;
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 16px;
   background: #10131b;
@@ -313,10 +314,10 @@ button.secondary {
 
 .keyboard {
   width: 100%;
-  max-width: 500px;
+  max-width: 424px;
   display: grid;
   gap: 8px;
-  margin: 18px auto 0;
+  margin: 22px auto 0;
 }
 
 .keyboard-row {
@@ -335,9 +336,9 @@ button.secondary {
 }
 
 .key {
-  width: 34px;
+  width: 36px;
   min-width: 0;
-  height: 46px;
+  height: 50px;
   padding: 0;
   border-radius: 8px;
   color: var(--key-unused-text);
@@ -347,7 +348,7 @@ button.secondary {
 }
 
 .key.wide {
-  width: 58px;
+  width: 62px;
   font-size: 0.72rem;
 }
 
@@ -406,7 +407,7 @@ button.secondary {
 
 .help-card {
   grid-column: 2;
-  padding: 22px;
+  padding: 28px;
 }
 
 .help-card h2 {
@@ -446,22 +447,34 @@ button.secondary {
   flex-wrap: wrap;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
     align-items: start;
+    justify-items: center;
+  }
+
+  .hero {
+    width: min(100%, 720px);
+    padding-bottom: 34px;
+  }
+
+  .game-card,
+  .help-card {
+    width: min(100%, 480px);
   }
 
   .help-card {
     grid-column: auto;
   }
-
-  .hero {
-    padding-bottom: 34px;
-  }
 }
 
 @media (max-width: 430px) {
+  h1 {
+    font-size: clamp(2.6rem, 12vw, 3rem);
+    letter-spacing: -0.065em;
+  }
+
   .app-shell {
     width: min(100%, 430px);
     justify-items: center;
@@ -478,6 +491,20 @@ button.secondary {
   .help-card {
     padding: 14px;
     border-radius: 20px;
+  }
+
+  .board-header {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .board-header > div {
+    padding: 14px;
+  }
+
+  .daily-panel,
+  .guess-panel {
+    padding: 14px;
   }
 
   .grid,
