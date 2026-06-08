@@ -52,11 +52,27 @@ test("scores duplicate letters with Wordle-style consumption", () => {
   ]);
 });
 
-test("uses the full Wordle-sized word lists", () => {
+test("uses the full official Wordle word lists", () => {
   assert.equal(ANSWERS.length, 2315);
   assert.equal(VALID_GUESSES.length, 12972);
   assert.equal(new Set(ANSWERS).size, ANSWERS.length);
   assert.equal(new Set(VALID_GUESSES).size, VALID_GUESSES.length);
+
+  const answers = new Set(ANSWERS);
+  const validGuesses = new Set(VALID_GUESSES);
+
+  for (const word of ANSWERS) {
+    assert.ok(validGuesses.has(word), `${word} answer should be accepted as a valid guess`);
+  }
+
+  for (const historicAnswer of ["cigar", "rebut", "sissy", "humph", "awake", "siege"]) {
+    assert.ok(answers.has(historicAnswer), `${historicAnswer} should be in the official answer list`);
+  }
+
+  for (const allowedGuess of ["aahed", "aalii", "aargh", "zuzim", "zygal", "zymic"]) {
+    assert.ok(validGuesses.has(allowedGuess), `${allowedGuess} should be in the official allowed guesses`);
+    assert.equal(answers.has(allowedGuess), false, `${allowedGuess} should not be treated as a possible answer`);
+  }
 });
 
 test("difficulty includes Scrabble letter values", () => {
