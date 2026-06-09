@@ -1,7 +1,9 @@
 import {
   ANSWERS,
+  VALID_GUESSES,
   TileState,
   createDailyPuzzles,
+  honorsLockedClues,
   isSolved,
   isValidGuess,
   normalizeWord,
@@ -135,7 +137,7 @@ function renderMessage(text, kind = "info") {
 }
 
 function defaultMessage() {
-  return `Exactly one answer remains out of ${ANSWERS.length} answers. This is today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
+  return `Exactly one valid guess remains out of ${VALID_GUESSES.length}. This is today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
 }
 
 function setMessage(text, kind = "info") {
@@ -261,8 +263,23 @@ function submitGuess() {
     return;
   }
 
-  if (!isValidGuess(state.guess) || state.guess !== puzzle.answer) {
+  if (!isValidGuess(state.guess)) {
     setMessage("Not in word list", "error");
+    return;
+  }
+
+  if (!honorsLockedClues(state.guess, puzzle.rows)) {
+    setMessage("Doesn't match the clues", "error");
+    return;
+  }
+
+  if (!ANSWERS.includes(state.guess)) {
+    setMessage("Valid guess, but not the one remaining answer", "error");
+    return;
+  }
+
+  if (state.guess !== puzzle.answer) {
+    setMessage("Not the one remaining answer", "error");
     return;
   }
 

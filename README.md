@@ -1,10 +1,10 @@
 # Wordle in One
 
-A tiny static Wordle clone where every calendar day has five deterministic puzzles. Each puzzle starts with enough guesses already filled in to leave exactly one possible answer in the app's answer bank. The player gets the next guess, which may be earlier than guess six.
+A tiny static Wordle clone where every calendar day has five deterministic puzzles. Each puzzle starts with enough guesses already filled in to leave exactly one valid Wordle guess, which is the classic Wordle answer. The player gets the next guess, which may be earlier than guess six.
 
 The prefilled rows use a solver-ish hard-mode strategy: a common opener followed by entropy/minimax-style guesses chosen from the remaining candidate answers, so every green/yellow clue is reused. Trivial near-answer boards are rejected, including simple yellow-letter swaps and boards with almost every position already green. The five daily puzzles are selected from a deterministic candidate pool, scored with a difficulty heuristic, boosted by Scrabble letter values for rare-letter answers, and sorted easiest to hardest. The final guess is entered through the Wordle-style keyboard, including its Enter and backspace keys, and daily progress is saved in localStorage.
 
-Word lists are vendored from `Kinkelin/WordleCompetition` official data: 2,315 shuffled answer words, 10,657 additional allowed guesses, and 12,972 total valid guesses verified against the combined list. Refresh them with `npm run update-wordlists`. See `THIRD_PARTY_NOTICES.md`.
+Word lists are vendored from `Kinkelin/WordleCompetition` official data: 2,315 classic answer words, 10,657 additional allowed guesses, and 12,972 total valid guesses verified against the combined list. By default, daily answers are chosen from the classic answer list, but a board is only valid when the clues leave exactly one word from all 12,972 valid guesses. Refresh the vendored lists with `npm run update-wordlists`. See `THIRD_PARTY_NOTICES.md`.
 
 ## Run
 

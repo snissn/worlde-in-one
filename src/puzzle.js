@@ -1,4 +1,11 @@
-import { ANSWERS, VALID_GUESSES } from "./words.js";
+import { ANSWERS as CLASSIC_ANSWERS, VALID_GUESSES } from "./words.js";
+
+export const ANSWER_BANKS = Object.freeze({
+  CLASSIC: "classic",
+  ALL_VALID_GUESSES: "all-valid-guesses"
+});
+
+export const ANSWERS = CLASSIC_ANSWERS;
 
 export const TileState = Object.freeze({
   ABSENT: "absent",
@@ -9,6 +16,7 @@ export const TileState = Object.freeze({
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
 const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 12;
+const DEFAULT_PROBE_POOL_SIZE = 320;
 const SCRABBLE_POINTS = Object.freeze({
   a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
   j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
@@ -19,6 +27,16 @@ for (const starter of STARTER_WORDS) {
   if (!VALID_GUESS_SET.has(starter)) {
     throw new Error(`Starter word is not a valid guess: ${starter}`);
   }
+}
+
+function answerBankForMode(mode = ANSWER_BANKS.CLASSIC) {
+  if (mode === ANSWER_BANKS.CLASSIC) {
+    return CLASSIC_ANSWERS;
+  }
+  if (mode === ANSWER_BANKS.ALL_VALID_GUESSES) {
+    return VALID_GUESSES;
+  }
+  throw new Error(`Unknown answer bank mode: ${mode}`);
 }
 
 function buildGlobalWordStats() {
@@ -262,13 +280,26 @@ function chooseOpeningGuess(target, used) {
   return null;
 }
 
-function chooseInformationProbe(target, candidates, used, rows) {
+function probeCandidatesFor(candidates, lockedClues, probePoolSize) {
+  const hardModeCandidates = candidates.filter((word) => wordHonorsClues(word, lockedClues));
+  if (hardModeCandidates.length <= probePoolSize) {
+    return hardModeCandidates;
+  }
+
+  return hardModeCandidates
+    .map((word) => ({ word, quality: wordQuality(word) }))
+    .sort((left, right) => right.quality - left.quality || left.word.localeCompare(right.word))
+    .slice(0, probePoolSize)
+    .map(({ word }) => word);
+}
+
+function chooseInformationProbe(target, candidates, used, rows, probePoolSize = DEFAULT_PROBE_POOL_SIZE) {
   const lockedClues = buildLockedClues(rows);
   let best = null;
   let bestKey = null;
 
-  for (const guess of candidates) {
-    if (guess === target || used.has(guess) || !wordHonorsClues(guess, lockedClues)) {
+  for (const guess of probeCandidatesFor(candidates, lockedClues, probePoolSize)) {
+    if (guess === target || used.has(guess)) {
       continue;
     }
 
@@ -384,11 +415,11 @@ function countConstraintViolations(wordInput, clues) {
   return violations;
 }
 
-function puzzleClueFeatures(puzzle, includeNearMisses = false) {
+function puzzleClueFeatures(puzzle, includeNearMisses = false, answers = ANSWERS) {
   const rows = puzzle.rows;
   const beforeLastCount = rows.length > 1
-    ? remainingAnswersForRows(rows.slice(0, -1)).length
-    : ANSWERS.length;
+    ? remainingAnswersForRows(rows.slice(0, -1), answers).length
+    : answers.length;
   const lockedClues = buildLockedClues(rows);
   const correctPositions = lockedClues.correctPositions.filter(Boolean).length;
   const requiredLetters = [...lockedClues.requiredCounts.values()]
@@ -423,7 +454,7 @@ function puzzleClueFeatures(puzzle, includeNearMisses = false) {
   let oneViolationMisses = 0;
   let twoViolationMisses = 0;
   if (includeNearMisses) {
-    for (const answer of ANSWERS) {
+    for (const answer of answers) {
       if (answer === puzzle.answer) {
         continue;
       }
@@ -454,8 +485,8 @@ function puzzleClueFeatures(puzzle, includeNearMisses = false) {
   };
 }
 
-export function isTrivialPuzzle(puzzle) {
-  const features = puzzleClueFeatures(puzzle);
+export function isTrivialPuzzle(puzzle, answers = ANSWERS) {
+  const features = puzzleClueFeatures(puzzle, false, answers);
 
   return features.correctPositions >= 4 ||
     (features.correctPositions >= 3 && features.requiredLetters >= 4) ||
@@ -463,15 +494,16 @@ export function isTrivialPuzzle(puzzle) {
     (features.maxRowCorrect >= 3 && features.maxRowColored === 5);
 }
 
-export function remainingAnswersForRows(rows, answers = ANSWERS) {
+export function remainingAnswersForRows(rows, answers = VALID_GUESSES) {
   return rows.reduce(
     (candidates, row) => matchingCandidates(candidates, row.word, row.pattern),
     [...answers]
   );
 }
 
-export function difficultyForPuzzle(puzzle) {
-  const features = puzzleClueFeatures(puzzle, true);
+export function difficultyForPuzzle(puzzle, options = {}) {
+  const answers = options.candidates ?? VALID_GUESSES;
+  const features = puzzleClueFeatures(puzzle, true, answers);
   const unknownPositions = 5 - features.correctPositions;
   const unknownLetters = 5 - features.requiredLetters;
   const scrabbleScore = scrabbleScoreForWord(puzzle.answer);
@@ -497,20 +529,23 @@ export function difficultyForPuzzle(puzzle) {
   });
 }
 
-export function buildPuzzleForTarget(targetInput) {
+export function buildPuzzleForTarget(targetInput, options = {}) {
   const target = normalizeWord(targetInput);
-  if (!ANSWERS.includes(target)) {
+  const answers = options.answers ?? answerBankForMode(options.answerBank);
+  const candidatesUniverse = options.candidates ?? VALID_GUESSES;
+  const probePoolSize = options.probePoolSize ?? DEFAULT_PROBE_POOL_SIZE;
+  if (!answers.includes(target) || !candidatesUniverse.includes(target)) {
     throw new Error(`Unknown answer word: ${targetInput}`);
   }
 
-  let candidates = [...ANSWERS];
+  let candidates = [...candidatesUniverse];
   const used = new Set();
   const rows = [];
 
   while (rows.length < 5 && candidates.length > 1) {
     const guess = rows.length === 0
       ? chooseOpeningGuess(target, used)
-      : chooseInformationProbe(target, candidates, used, rows);
+      : chooseInformationProbe(target, candidates, used, rows, probePoolSize);
 
     if (!guess) {
       return null;
@@ -526,7 +561,7 @@ export function buildPuzzleForTarget(targetInput) {
     return null;
   }
 
-  const remaining = remainingAnswersForRows(rows);
+  const remaining = remainingAnswersForRows(rows, candidatesUniverse);
   if (remaining.length !== 1 || remaining[0] !== target) {
     return null;
   }
@@ -537,16 +572,18 @@ export function buildPuzzleForTarget(targetInput) {
     remaining: Object.freeze(remaining)
   });
 
-  if (isTrivialPuzzle(puzzle)) {
+  if (isTrivialPuzzle(puzzle, candidatesUniverse)) {
     return null;
   }
 
   return puzzle;
 }
 
-export function createPuzzle(rng = Math.random) {
-  for (const target of shuffled(ANSWERS, rng)) {
-    const puzzle = buildPuzzleForTarget(target);
+export function createPuzzle(rng = Math.random, options = {}) {
+  const answers = options.answers ?? answerBankForMode(options.answerBank);
+  const candidates = options.candidates ?? VALID_GUESSES;
+  for (const target of shuffled(answers, rng)) {
+    const puzzle = buildPuzzleForTarget(target, { ...options, answers, candidates });
     if (puzzle) {
       return puzzle;
     }
@@ -598,18 +635,20 @@ function selectDifficultySpread(puzzles, count) {
 export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   const dateKey = dateKeyForPuzzle(date);
   const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
+  const answers = options.answers ?? answerBankForMode(options.answerBank);
+  const candidates = options.candidates ?? VALID_GUESSES;
   const poolSize = options.poolSize ?? Math.max(DEFAULT_DAILY_CANDIDATE_POOL_SIZE, count * 2);
   const pool = [];
 
-  for (const target of shuffled(ANSWERS, rng)) {
-    const puzzle = buildPuzzleForTarget(target);
+  for (const target of shuffled(answers, rng)) {
+    const puzzle = buildPuzzleForTarget(target, { ...options, answers, candidates });
     if (!puzzle) {
       continue;
     }
 
     pool.push({
       ...puzzle,
-      difficulty: difficultyForPuzzle(puzzle)
+      difficulty: difficultyForPuzzle(puzzle, { candidates })
     });
 
     if (pool.length === poolSize) {
@@ -633,4 +672,4 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   });
 }
 
-export { ANSWERS, VALID_GUESSES };
+export { CLASSIC_ANSWERS, VALID_GUESSES };
