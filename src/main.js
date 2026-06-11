@@ -23,6 +23,8 @@ const KEY_STATE_PRIORITY = Object.freeze({
 });
 
 const STORAGE_PREFIX = "wordle-in-one-state";
+const MAX_TOASTS = 5;
+const TOAST_DURATION_MS = 1900;
 const daily = createDailyPuzzles(new Date(), 5);
 const savedDailyState = loadSavedDailyState(daily);
 const puzzleStates = savedDailyState.states;
@@ -32,7 +34,7 @@ let puzzle = daily.puzzles[activePuzzleIndex];
 
 const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
-const message = document.querySelector("#message");
+const toastRegion = document.querySelector("#toast-region");
 const remainingCount = document.querySelector("#remaining-count");
 const guessNumber = document.querySelector("#guess-number");
 const puzzleTabs = document.querySelector("#puzzle-tabs");
@@ -54,9 +56,7 @@ function createEmptyPuzzleState() {
   return {
     guess: "",
     submitted: false,
-    pattern: null,
-    message: null,
-    messageKind: "info"
+    pattern: null
   };
 }
 
@@ -96,9 +96,7 @@ function loadSavedDailyState(dailySet) {
         ...createEmptyPuzzleState(),
         guess,
         submitted,
-        pattern: submitted ? solvedPattern() : null,
-        message: submitted ? "Got it. That was the only possible answer." : null,
-        messageKind: submitted ? "success" : "info"
+        pattern: submitted ? solvedPattern() : null
       };
     });
     const activePuzzleIndex = Number.isInteger(saved.activePuzzleIndex) && saved.activePuzzleIndex >= 0 && saved.activePuzzleIndex < states.length
@@ -132,26 +130,43 @@ function activeState() {
   return puzzleStates[activePuzzleIndex];
 }
 
-function renderMessage(text, kind = "info") {
-  message.textContent = text;
-  message.classList.toggle("error", kind === "error");
-  message.classList.toggle("success", kind === "success");
+function clearToasts() {
+  toastRegion.replaceChildren();
 }
 
-function defaultMessage() {
-  return `Exactly one answer remains for today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
+function showToast(text, kind = "info") {
+  while (toastRegion.children.length >= MAX_TOASTS) {
+    toastRegion.firstElementChild?.remove();
+  }
+
+  const toast = document.createElement("p");
+  toast.className = `toast-message ${kind}`;
+  toast.textContent = text;
+  toastRegion.append(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add("leaving");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+    window.setTimeout(() => toast.remove(), 320);
+  }, TOAST_DURATION_MS);
 }
 
-function setMessage(text, kind = "info") {
-  const state = activeState();
-  state.message = text;
-  state.messageKind = kind;
-  renderMessage(text, kind);
+function shakeFinalRow() {
+  const finalRow = finalTiles[0]?.parentElement;
+  if (!finalRow) {
+    return;
+  }
+
+  finalRow.classList.remove("shake");
+  void finalRow.offsetWidth;
+  finalRow.classList.add("shake");
+  finalRow.addEventListener("animationend", () => finalRow.classList.remove("shake"), { once: true });
+  window.setTimeout(() => finalRow.classList.remove("shake"), 520);
 }
 
-function showActiveMessage() {
-  const state = activeState();
-  renderMessage(state.message ?? defaultMessage(), state.message ? state.messageKind : "info");
+function showInvalidGuess(text) {
+  shakeFinalRow();
+  showToast(text, "error");
 }
 
 function formatDateKey(dateKey) {
@@ -236,12 +251,6 @@ function syncGuess(rawValue) {
   const state = activeState();
   state.guess = normalizeWord(rawValue);
 
-  if (state.messageKind === "error") {
-    state.message = null;
-    state.messageKind = "info";
-    showActiveMessage();
-  }
-
   updateFinalTiles(state.guess);
   saveDailyState();
   return state.guess;
@@ -261,27 +270,27 @@ function submitGuess() {
   }
 
   if (state.guess.length !== 5) {
-    setMessage("Not enough letters", "error");
+    showInvalidGuess("Not enough letters");
     return;
   }
 
   if (!isValidGuess(state.guess)) {
-    setMessage("Not in word list", "error");
+    showInvalidGuess("Not in word list");
     return;
   }
 
   if (!honorsLockedClues(state.guess, puzzle.rows)) {
-    setMessage("Doesn't match the clues", "error");
+    showInvalidGuess("Doesn't match clues");
     return;
   }
 
   if (!ANSWERS.includes(state.guess)) {
-    setMessage("Valid guess, but not the one remaining answer", "error");
+    showInvalidGuess("Not the answer");
     return;
   }
 
   if (state.guess !== puzzle.answer) {
-    setMessage("Not the one remaining answer", "error");
+    showInvalidGuess("Not the answer");
     return;
   }
 
@@ -291,7 +300,7 @@ function submitGuess() {
   updateKeyboard(keyboardRowsForActivePuzzle());
   updatePuzzleTabs();
   setKeyboardDisabled(true);
-  setMessage("Got it. That was the only possible answer.", "success");
+  showToast("Got it", "success");
   saveDailyState();
 }
 
@@ -411,12 +420,12 @@ function updatePuzzleTabs() {
 function switchPuzzle(index) {
   activePuzzleIndex = index;
   puzzle = daily.puzzles[activePuzzleIndex];
+  clearToasts();
   renderBoard();
   updatePuzzleChrome();
   updatePuzzleTabs();
   updateKeyboard(keyboardRowsForActivePuzzle());
   setKeyboardDisabled(activeState().submitted);
-  showActiveMessage();
   saveDailyState();
 }
 
@@ -498,7 +507,7 @@ document.addEventListener("keydown", (event) => {
 
 statusButton.addEventListener("click", () => {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
-  setMessage(`${remainingAnswers} possible answer remains. This is guess #${puzzle.rows.length + 1}.`, "info");
+  showToast(remainingAnswers === 1 ? "One answer remains" : `${remainingAnswers} answers remain`);
 });
 
 settingsButton.addEventListener("click", () => {
@@ -519,7 +528,7 @@ revealButton.addEventListener("click", () => {
   }
 
   syncGuess(puzzle.answer);
-  setMessage("Answer filled in. Press Enter on the keyboard to finish the board.", "success");
+  showToast("Answer filled in");
   helpDrawer.open = false;
   updateSettingsButtonState();
   keyboard.querySelector('[data-key="enter"]')?.focus();
