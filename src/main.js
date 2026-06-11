@@ -41,7 +41,6 @@ const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
-const statusButton = document.querySelector("#status-button");
 const settingsButton = document.querySelector("#settings-button");
 const helpDrawer = document.querySelector("#help-drawer");
 
@@ -503,11 +502,6 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     syncGuess(`${state.guess}${event.key}`);
   }
-});
-
-statusButton.addEventListener("click", () => {
-  const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
-  showToast(remainingAnswers === 1 ? "One answer remains" : `${remainingAnswers} answers remain`);
 });
 
 settingsButton.addEventListener("click", () => {

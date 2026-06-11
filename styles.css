@@ -148,8 +148,13 @@ p {
 }
 
 .title-stack {
+  grid-column: 2;
   min-width: 0;
   text-align: center;
+}
+
+#settings-button {
+  grid-column: 3;
 }
 
 h1 {
