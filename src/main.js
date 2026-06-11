@@ -38,7 +38,6 @@ const guessNumber = document.querySelector("#guess-number");
 const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
 const dailyTitle = document.querySelector("#daily-title");
-const resetPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
 const statusButton = document.querySelector("#status-button");
 const settingsButton = document.querySelector("#settings-button");
@@ -446,11 +445,6 @@ function renderPuzzleTabs() {
   updatePuzzleTabs();
 }
 
-function resetActivePuzzle() {
-  puzzleStates[activePuzzleIndex] = createEmptyPuzzleState();
-  switchPuzzle(activePuzzleIndex);
-}
-
 function updateSettingsButtonState() {
   if (!settingsButton || !helpDrawer) {
     return;
@@ -518,7 +512,6 @@ settingsButton.addEventListener("click", () => {
 
 helpDrawer.addEventListener("toggle", updateSettingsButtonState);
 
-resetPuzzleButton.addEventListener("click", resetActivePuzzle);
 revealButton.addEventListener("click", () => {
   const state = activeState();
   if (state.submitted) {
@@ -527,6 +520,8 @@ revealButton.addEventListener("click", () => {
 
   syncGuess(puzzle.answer);
   setMessage("Answer filled in. Press Enter on the keyboard to finish the board.", "success");
+  helpDrawer.open = false;
+  updateSettingsButtonState();
   keyboard.querySelector('[data-key="enter"]')?.focus();
 });
 updateSettingsButtonState();
