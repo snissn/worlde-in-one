@@ -40,6 +40,9 @@ const dailyDate = document.querySelector("#daily-date");
 const dailyTitle = document.querySelector("#daily-title");
 const resetPuzzleButton = document.querySelector("#new-puzzle");
 const revealButton = document.querySelector("#reveal");
+const statusButton = document.querySelector("#status-button");
+const settingsButton = document.querySelector("#settings-button");
+const helpDrawer = document.querySelector("#help-drawer");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
@@ -137,7 +140,7 @@ function renderMessage(text, kind = "info") {
 }
 
 function defaultMessage() {
-  return `Exactly one valid guess remains out of ${VALID_GUESSES.length}. This is today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
+  return `Exactly one answer remains for today's ${puzzle.difficultyLabel.toLowerCase()} puzzle.`;
 }
 
 function setMessage(text, kind = "info") {
@@ -380,10 +383,12 @@ function setKeyboardDisabled(disabled) {
 }
 
 function updatePuzzleChrome() {
-  remainingCount.textContent = String(remainingAnswersForRows(puzzle.rows).length);
+  const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
+  remainingCount.textContent = String(remainingAnswers);
   guessNumber.textContent = `#${puzzle.rows.length + 1}`;
-  dailyDate.textContent = `Daily ${formatDateKey(daily.dateKey)}`;
-  dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} · ${puzzle.difficultyLabel}`;
+  dailyDate.textContent = formatDateKey(daily.dateKey);
+  dailyDate.dateTime = daily.dateKey;
+  dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
 }
 
 function updatePuzzleTabs() {
@@ -446,6 +451,16 @@ function resetActivePuzzle() {
   switchPuzzle(activePuzzleIndex);
 }
 
+function updateSettingsButtonState() {
+  if (!settingsButton || !helpDrawer) {
+    return;
+  }
+
+  const isOpen = helpDrawer.open;
+  settingsButton.setAttribute("aria-expanded", String(isOpen));
+  settingsButton.setAttribute("aria-label", isOpen ? "Close how it works" : "Open how it works");
+}
+
 function handleKeyboardAction(action) {
   const state = activeState();
   if (state.submitted) {
@@ -487,6 +502,22 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+statusButton.addEventListener("click", () => {
+  const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
+  setMessage(`${remainingAnswers} possible answer remains. This is guess #${puzzle.rows.length + 1}.`, "info");
+});
+
+settingsButton.addEventListener("click", () => {
+  helpDrawer.open = !helpDrawer.open;
+  updateSettingsButtonState();
+
+  if (helpDrawer.open) {
+    helpDrawer.scrollIntoView({ block: "nearest" });
+  }
+});
+
+helpDrawer.addEventListener("toggle", updateSettingsButtonState);
+
 resetPuzzleButton.addEventListener("click", resetActivePuzzle);
 revealButton.addEventListener("click", () => {
   const state = activeState();
@@ -496,4 +527,6 @@ revealButton.addEventListener("click", () => {
 
   syncGuess(puzzle.answer);
   setMessage("Answer filled in. Press Enter on the keyboard to finish the board.", "success");
+  keyboard.querySelector('[data-key="enter"]')?.focus();
 });
+updateSettingsButtonState();
