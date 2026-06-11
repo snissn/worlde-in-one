@@ -43,6 +43,7 @@ const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
 const helpButton = document.querySelector("#help-button");
+const boardWrap = document.querySelector(".board-wrap");
 const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
 const answerCloseButton = document.querySelector("#answer-close");
@@ -50,6 +51,13 @@ const helpCloseButton = document.querySelector("#help-close");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
+
+function syncViewportHeight() {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  if (Number.isFinite(viewportHeight) && viewportHeight > 0) {
+    document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+  }
+}
 
 function solvedPattern() {
   return Array(5).fill(TileState.CORRECT);
@@ -225,6 +233,9 @@ function renderBoard() {
   }
 
   grid.append(finalRow);
+  const rowCount = grid.children.length;
+  grid.dataset.rows = String(rowCount);
+  boardWrap?.setAttribute("data-rows", String(rowCount));
 
   const state = activeState();
   updateFinalTiles(state.guess, state.submitted ? state.pattern : null);
@@ -533,6 +544,11 @@ function handleKeyboardAction(action) {
     syncGuess(`${state.guess}${action}`);
   }
 }
+
+syncViewportHeight();
+window.visualViewport?.addEventListener("resize", syncViewportHeight);
+window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+window.addEventListener("resize", syncViewportHeight);
 
 renderKeyboard();
 renderPuzzleTabs();
