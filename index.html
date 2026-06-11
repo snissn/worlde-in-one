@@ -10,28 +10,36 @@
     <main class="app-shell">
       <section class="game-shell" aria-label="Wordle in One game">
         <header class="game-header">
-          <div class="title-stack">
-            <h1 id="title">Wordle in One</h1>
-            <div class="date-line">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 2v4" />
-                <path d="M16 2v4" />
-                <path d="M4 9h16" />
-                <rect x="4" y="5" width="16" height="17" rx="2" />
-              </svg>
-              <time id="daily-date" datetime="">Daily</time>
-            </div>
-          </div>
-
-          <button id="settings-button" class="icon-button" type="button" aria-label="Open how it works" aria-controls="help-modal" aria-expanded="false">
+          <button id="settings-button" class="icon-button" type="button" aria-label="Open puzzle options" aria-controls="answer-modal" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
             </svg>
           </button>
+
+          <div class="title-stack">
+            <h1 id="title">Wordle in One</h1>
+          </div>
+
+          <button id="help-button" class="icon-button" type="button" aria-label="Open how it works" aria-controls="help-modal" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18h6" />
+              <path d="M10 22h4" />
+              <path d="M8.5 14.5a6 6 0 1 1 7 0c-.8.7-1.1 1.5-1.1 2.5H9.6c0-1-.3-1.8-1.1-2.5Z" />
+            </svg>
+          </button>
         </header>
 
-        <div class="puzzle-status" aria-hidden="true">
+        <div class="puzzle-meta" aria-label="Puzzle details">
+          <span class="date-chip">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 2v4" />
+              <path d="M16 2v4" />
+              <path d="M4 9h16" />
+              <rect x="4" y="5" width="16" height="17" rx="2" />
+            </svg>
+            <time id="daily-date" datetime="">Daily</time>
+          </span>
           <span><strong id="remaining-count">1</strong> answer left</span>
           <span id="guess-number">#?</span>
         </div>
@@ -49,7 +57,35 @@
         <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
       </section>
 
-      <dialog id="help-modal" class="help-modal" aria-labelledby="help-title">
+      <dialog id="answer-modal" class="app-modal answer-modal" aria-labelledby="answer-title">
+        <div class="modal-header">
+          <h2 id="answer-title" class="modal-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
+            </svg>
+            Puzzle options
+          </h2>
+          <button id="answer-close" class="modal-close" type="button" aria-label="Close puzzle options">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-content answer-content">
+          <button id="reveal" class="reveal-action" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Reveal answer
+          </button>
+        </div>
+      </dialog>
+
+      <dialog id="help-modal" class="app-modal help-modal" aria-labelledby="help-title">
         <div class="modal-header">
           <h2 id="help-title" class="modal-title">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -67,7 +103,7 @@
           </button>
         </div>
 
-        <div class="help-content">
+        <div class="modal-content help-content">
           <p>
             Each date creates the same five puzzles for everyone. The clues are
             chosen so exactly one answer remains.
@@ -77,13 +113,6 @@
             <span><i class="legend-tile present"></i> wrong spot</span>
             <span><i class="legend-tile absent"></i> not in word</span>
           </div>
-          <button id="reveal" class="reveal-action" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            Reveal answer
-          </button>
         </div>
       </dialog>
     </main>

@@ -42,7 +42,10 @@ const dailyDate = document.querySelector("#daily-date");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
+const helpButton = document.querySelector("#help-button");
+const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
+const answerCloseButton = document.querySelector("#answer-close");
 const helpCloseButton = document.querySelector("#help-close");
 
 const finalTiles = [];
@@ -393,7 +396,7 @@ function setKeyboardDisabled(disabled) {
 function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
-  guessNumber.textContent = `#${puzzle.rows.length + 1}`;
+  guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
   dailyDate.textContent = formatDateKey(daily.dateKey);
   dailyDate.dateTime = daily.dateKey;
   dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
@@ -454,33 +457,66 @@ function renderPuzzleTabs() {
   updatePuzzleTabs();
 }
 
-function updateSettingsButtonState() {
-  if (!settingsButton || !helpModal) {
-    return;
+const modalControls = [
+  {
+    button: settingsButton,
+    closeButton: answerCloseButton,
+    modal: answerModal,
+    openLabel: "Open puzzle options",
+    closeLabel: "Close puzzle options"
+  },
+  {
+    button: helpButton,
+    closeButton: helpCloseButton,
+    modal: helpModal,
+    openLabel: "Open how it works",
+    closeLabel: "Close how it works"
   }
+];
 
-  const isOpen = helpModal.open;
-  settingsButton.setAttribute("aria-expanded", String(isOpen));
-  settingsButton.setAttribute("aria-label", isOpen ? "Close how it works" : "Open how it works");
-  document.body.classList.toggle("modal-open", isOpen);
+function isAnyModalOpen() {
+  return modalControls.some(({ modal }) => modal?.open);
 }
 
-function openHelpModal() {
-  if (!helpModal || helpModal.open) {
-    return;
+function updateModalButtonStates() {
+  for (const { button, modal, openLabel, closeLabel } of modalControls) {
+    if (!button || !modal) {
+      continue;
+    }
+
+    const isOpen = modal.open;
+    button.setAttribute("aria-expanded", String(isOpen));
+    button.setAttribute("aria-label", isOpen ? closeLabel : openLabel);
   }
 
-  helpModal.showModal();
-  updateSettingsButtonState();
+  document.body.classList.toggle("modal-open", isAnyModalOpen());
 }
 
-function closeHelpModal() {
-  if (!helpModal?.open) {
+function closeModal(modal) {
+  if (!modal?.open) {
     return;
   }
 
-  helpModal.close();
-  updateSettingsButtonState();
+  modal.close();
+  updateModalButtonStates();
+}
+
+function closeOtherModals(nextModal) {
+  for (const { modal } of modalControls) {
+    if (modal !== nextModal && modal?.open) {
+      modal.close();
+    }
+  }
+}
+
+function openModal(modal) {
+  if (!modal || modal.open) {
+    return;
+  }
+
+  closeOtherModals(modal);
+  modal.showModal();
+  updateModalButtonStates();
 }
 
 function handleKeyboardAction(action) {
@@ -503,7 +539,7 @@ renderPuzzleTabs();
 switchPuzzle(0);
 
 document.addEventListener("keydown", (event) => {
-  if (helpModal?.open) {
+  if (isAnyModalOpen()) {
     return;
   }
 
@@ -528,25 +564,27 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-settingsButton.addEventListener("click", () => {
-  if (helpModal?.open) {
-    closeHelpModal();
-    return;
-  }
+for (const { button, closeButton, modal } of modalControls) {
+  button?.addEventListener("click", () => {
+    if (modal?.open) {
+      closeModal(modal);
+      return;
+    }
 
-  openHelpModal();
-});
+    openModal(modal);
+  });
 
-helpCloseButton.addEventListener("click", closeHelpModal);
+  closeButton?.addEventListener("click", () => closeModal(modal));
 
-helpModal.addEventListener("click", (event) => {
-  if (event.target === helpModal) {
-    closeHelpModal();
-  }
-});
+  modal?.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeModal(modal);
+    }
+  });
 
-helpModal.addEventListener("close", updateSettingsButtonState);
-helpModal.addEventListener("cancel", updateSettingsButtonState);
+  modal?.addEventListener("close", updateModalButtonStates);
+  modal?.addEventListener("cancel", updateModalButtonStates);
+}
 
 revealButton.addEventListener("click", () => {
   const state = activeState();
@@ -556,7 +594,7 @@ revealButton.addEventListener("click", () => {
 
   syncGuess(puzzle.answer);
   showToast("Answer filled in");
-  closeHelpModal();
+  closeModal(answerModal);
   keyboard.querySelector('[data-key="enter"]')?.focus();
 });
-updateSettingsButtonState();
+updateModalButtonStates();
