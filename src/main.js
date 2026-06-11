@@ -42,7 +42,8 @@ const dailyDate = document.querySelector("#daily-date");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
-const helpDrawer = document.querySelector("#help-drawer");
+const helpModal = document.querySelector("#help-modal");
+const helpCloseButton = document.querySelector("#help-close");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
@@ -454,13 +455,32 @@ function renderPuzzleTabs() {
 }
 
 function updateSettingsButtonState() {
-  if (!settingsButton || !helpDrawer) {
+  if (!settingsButton || !helpModal) {
     return;
   }
 
-  const isOpen = helpDrawer.open;
+  const isOpen = helpModal.open;
   settingsButton.setAttribute("aria-expanded", String(isOpen));
   settingsButton.setAttribute("aria-label", isOpen ? "Close how it works" : "Open how it works");
+  document.body.classList.toggle("modal-open", isOpen);
+}
+
+function openHelpModal() {
+  if (!helpModal || helpModal.open) {
+    return;
+  }
+
+  helpModal.showModal();
+  updateSettingsButtonState();
+}
+
+function closeHelpModal() {
+  if (!helpModal?.open) {
+    return;
+  }
+
+  helpModal.close();
+  updateSettingsButtonState();
 }
 
 function handleKeyboardAction(action) {
@@ -483,6 +503,10 @@ renderPuzzleTabs();
 switchPuzzle(0);
 
 document.addEventListener("keydown", (event) => {
+  if (helpModal?.open) {
+    return;
+  }
+
   if (event.target instanceof HTMLButtonElement && !event.target.classList.contains("key")) {
     return;
   }
@@ -505,15 +529,24 @@ document.addEventListener("keydown", (event) => {
 });
 
 settingsButton.addEventListener("click", () => {
-  helpDrawer.open = !helpDrawer.open;
-  updateSettingsButtonState();
+  if (helpModal?.open) {
+    closeHelpModal();
+    return;
+  }
 
-  if (helpDrawer.open) {
-    helpDrawer.scrollIntoView({ block: "nearest" });
+  openHelpModal();
+});
+
+helpCloseButton.addEventListener("click", closeHelpModal);
+
+helpModal.addEventListener("click", (event) => {
+  if (event.target === helpModal) {
+    closeHelpModal();
   }
 });
 
-helpDrawer.addEventListener("toggle", updateSettingsButtonState);
+helpModal.addEventListener("close", updateSettingsButtonState);
+helpModal.addEventListener("cancel", updateSettingsButtonState);
 
 revealButton.addEventListener("click", () => {
   const state = activeState();
@@ -523,8 +556,7 @@ revealButton.addEventListener("click", () => {
 
   syncGuess(puzzle.answer);
   showToast("Answer filled in");
-  helpDrawer.open = false;
-  updateSettingsButtonState();
+  closeHelpModal();
   keyboard.querySelector('[data-key="enter"]')?.focus();
 });
 updateSettingsButtonState();

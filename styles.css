@@ -75,8 +75,13 @@ svg {
 }
 
 h1,
+h2,
 p {
   margin-top: 0;
+}
+
+.modal-open {
+  overflow: hidden;
 }
 
 .screen-reader-only {
@@ -445,7 +450,7 @@ h1 {
   max-width: 398px;
   display: grid;
   gap: 8px;
-  margin: 0 auto;
+  margin: auto auto 0;
 }
 
 .keyboard-row {
@@ -543,60 +548,95 @@ h1 {
   text-shadow: none;
 }
 
-.help-drawer {
-  margin-top: 4px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgb(8 17 29 / 72%);
-  overflow: hidden;
-}
-
-.help-drawer summary {
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 18px;
-  color: rgb(214 222 237 / 82%);
-  cursor: pointer;
-  list-style: none;
-}
-
-.help-drawer summary::-webkit-details-marker {
+.help-modal:not([open]) {
   display: none;
 }
 
-.summary-title {
+.help-modal {
+  width: min(calc(100% - 36px), 390px);
+  max-height: min(82svh, 620px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  color: var(--text);
+  background:
+    linear-gradient(180deg, rgb(13 27 44 / 98%) 0%, rgb(4 12 21 / 99%) 100%),
+    var(--surface);
+  box-shadow: 0 28px 80px rgb(0 0 0 / 62%), inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.help-modal::backdrop {
+  background:
+    linear-gradient(180deg, rgb(1 4 8 / 58%), rgb(1 4 8 / 76%)),
+    rgb(0 0 0 / 48%);
+  backdrop-filter: blur(8px);
+}
+
+.modal-header {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px 10px 22px;
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+}
+
+.modal-title {
+  margin: 0;
   min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  font-size: 1rem;
-  font-weight: 700;
+  color: rgb(239 244 255 / 92%);
+  font-size: 1.02rem;
+  line-height: 1.1;
+  font-weight: 800;
 }
 
-.summary-title svg {
+.modal-title svg {
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
   color: #68f074;
 }
 
-.chevron {
-  width: 22px;
-  height: 22px;
+.modal-close {
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
-  color: rgb(203 214 233 / 72%);
-  transition: transform 160ms ease;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  color: rgb(220 229 244 / 84%);
+  background: rgb(8 16 27 / 76%);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
-.help-drawer[open] .chevron {
-  transform: rotate(180deg);
+.modal-close svg {
+  width: 22px;
+  height: 22px;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+  border-color: rgb(88 162 255 / 60%);
+  color: var(--text);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  outline: none;
+}
+
+.modal-close:active {
+  transform: translateY(1px);
 }
 
 .help-content {
-  padding: 0 18px 18px;
+  max-height: calc(min(82svh, 620px) - 70px);
+  padding: 18px 22px 22px;
+  overflow-y: auto;
   color: var(--muted);
 }
 
@@ -880,12 +920,8 @@ h1 {
     height: 44px;
   }
 
-  .help-drawer {
-    margin-top: 0;
-  }
-
-  .help-drawer summary {
-    min-height: 52px;
+  .modal-header {
+    min-height: 64px;
   }
 }
 
@@ -965,7 +1001,12 @@ h1 {
     height: 40px;
   }
 
-  .help-drawer summary {
-    min-height: 48px;
+  .modal-header {
+    min-height: 60px;
+    padding-left: 18px;
+  }
+
+  .help-content {
+    padding: 16px 18px 18px;
   }
 }
