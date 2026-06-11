@@ -16,6 +16,10 @@
   --present: #c59a16;
   --present-strong: #f1c744;
   --absent: #303b49;
+  --key-disabled: #03060a;
+  --key-disabled-surface: #070b11;
+  --key-disabled-text: rgb(118 130 148 / 78%);
+  --key-disabled-line: rgb(255 255 255 / 7%);
   --danger: #ff8d8d;
   --success: #95f49d;
   --shadow: 0 30px 100px rgb(0 0 0 / 48%);
@@ -511,20 +515,32 @@ h1 {
 }
 
 .key.absent {
-  color: rgb(217 224 235 / 76%);
+  border-color: var(--key-disabled-line);
+  color: var(--key-disabled-text);
   background:
-    linear-gradient(180deg, rgb(44 55 69 / 88%), rgb(31 40 52 / 96%)),
-    var(--absent);
+    linear-gradient(180deg, rgb(13 18 25 / 98%), rgb(4 8 13 / 100%)),
+    var(--key-disabled);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 4%),
+    inset 0 -18px 28px rgb(0 0 0 / 44%);
+  text-shadow: none;
 }
 
 .key:disabled {
   cursor: not-allowed;
   filter: none;
-  opacity: 0.72;
 }
 
-.key.correct:disabled {
-  opacity: 1;
+.key:disabled:not(.correct):not(.present) {
+  border-color: var(--key-disabled-line);
+  color: var(--key-disabled-text);
+  background:
+    linear-gradient(180deg, rgb(10 14 20 / 98%), rgb(2 5 9 / 100%)),
+    var(--key-disabled-surface);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 3%),
+    inset 0 -16px 24px rgb(0 0 0 / 52%);
+  text-shadow: none;
 }
 
 .help-drawer {
