@@ -780,6 +780,28 @@ h1 {
     border-radius: 0;
     box-shadow: none;
   }
+
+  .keyboard {
+    width: calc(100% + 24px);
+    max-width: none;
+    gap: 7px;
+    margin-right: -12px;
+    margin-left: -12px;
+  }
+
+  .keyboard-row {
+    gap: 5px;
+  }
+
+  .key {
+    height: 58px;
+    border-radius: 8px;
+    font-size: 1.22rem;
+  }
+
+  .key.wide {
+    font-size: 0.72rem;
+  }
 }
 
 @media (max-width: 380px) {
@@ -834,20 +856,23 @@ h1 {
   }
 
   .keyboard {
+    width: calc(100% + 16px);
     gap: 6px;
+    margin-right: -8px;
+    margin-left: -8px;
   }
 
   .keyboard-row {
-    gap: 4px;
+    gap: 5px;
   }
 
   .key {
-    height: 46px;
-    font-size: 1.08rem;
+    height: 54px;
+    font-size: 1.14rem;
   }
 
   .key.wide {
-    font-size: 0.68rem;
+    font-size: 0.7rem;
   }
 
 }
@@ -917,7 +942,7 @@ h1 {
   }
 
   .key {
-    height: 44px;
+    height: 50px;
   }
 
   .modal-header {
@@ -928,6 +953,18 @@ h1 {
 @media (max-width: 480px) and (max-height: 900px) {
   .app-shell {
     padding: 0;
+  }
+
+  .keyboard {
+    gap: 7px;
+  }
+
+  .keyboard-row {
+    gap: 5px;
+  }
+
+  .key {
+    height: 58px;
   }
 }
 
@@ -994,11 +1031,14 @@ h1 {
   }
 
   .keyboard {
-    gap: 5px;
+    width: calc(100% + 16px);
+    gap: 6px;
+    margin-right: -8px;
+    margin-left: -8px;
   }
 
   .key {
-    height: 40px;
+    height: 54px;
   }
 
   .modal-header {
