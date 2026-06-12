@@ -163,7 +163,7 @@ function displaySeed(seed) {
 
 function gameLabel() {
   return isSeededGame
-    ? `Seed ${displaySeed(daily.shareSeed)}`
+    ? `Challenge ${displaySeed(daily.shareSeed)}`
     : formatDateKey(daily.dateKey);
 }
 
@@ -179,8 +179,8 @@ function seedForShare() {
 
 function seedSharePayload(seed) {
   return {
-    title: "Wordle in One",
-    text: `Wordle in One seed ${displaySeed(seed)}`,
+    title: "Wordle in One Challenge",
+    text: "Can you find the only possible answers?",
     url: seedUrl(seed)
   };
 }
@@ -198,7 +198,7 @@ async function copySeedLink(seed = seedForShare()) {
 
   try {
     await navigator.clipboard.writeText(payload.url);
-    showToast("Seed link copied", "success");
+    showToast("Challenge link copied", "success");
     return true;
   } catch {
     return false;
@@ -465,14 +465,14 @@ function updatePuzzleChrome() {
   remainingCount.textContent = String(remainingAnswers);
   guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
   if (isSeededGame) {
-    const seedLabel = `Seed ${displaySeed(daily.shareSeed)}`;
+    const seedLabel = `Challenge ${displaySeed(daily.shareSeed)}`;
     dailyDate.hidden = true;
     dailyDate.removeAttribute("datetime");
     seedDateLink.hidden = false;
     seedDateLink.href = seedUrl(daily.shareSeed);
-    seedDateLink.textContent = displaySeed(daily.shareSeed);
+    seedDateLink.textContent = "Challenge";
     seedDateLink.title = seedLabel;
-    seedDateLink.setAttribute("aria-label", `Share ${seedLabel}`);
+    seedDateLink.setAttribute("aria-label", `Share ${seedLabel} link`);
   } else {
     dailyDate.hidden = false;
     dailyDate.textContent = gameLabel();
@@ -493,24 +493,24 @@ function updatePlayMorePanel() {
   }
 
   if (isSeededGame) {
-    playMoreTitle.textContent = `Seed ${displaySeed(daily.shareSeed)} complete`;
-    playMoreDetail.textContent = "Share this set or roll another seed.";
+    playMoreTitle.textContent = "Challenge complete";
+    playMoreDetail.textContent = "Share this set or start another challenge.";
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Share";
-    newSeedGameButton.textContent = "New seed";
+    shareSeedLinkButton.textContent = "Share link";
+    newSeedGameButton.textContent = "New challenge";
   } else {
     playMoreTitle.textContent = "Daily complete";
-    playMoreDetail.textContent = "Share a seed or keep playing.";
+    playMoreDetail.textContent = "Send a fresh challenge or keep playing.";
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Share seed";
+    shareSeedLinkButton.textContent = "Share link";
     newSeedGameButton.textContent = "Play more";
   }
 }
 
 function updateSeedOptions() {
   seedOptionDetail.textContent = isSeededGame
-    ? `Seed ${displaySeed(daily.shareSeed)}`
-    : "Replayable set";
+    ? `Challenge code ${displaySeed(daily.shareSeed)}`
+    : "Create a replayable five-puzzle set.";
 }
 
 function updatePuzzleTabs() {
