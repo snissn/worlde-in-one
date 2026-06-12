@@ -64,10 +64,13 @@ const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
 const answerCloseButton = document.querySelector("#answer-close");
 const helpCloseButton = document.querySelector("#help-close");
+const seedOptionDetail = document.querySelector("#seed-option-detail");
+const shareSeedGameButton = document.querySelector("#share-seed-game");
+const startSeedGameButton = document.querySelector("#start-seed-game");
 const playMorePanel = document.querySelector("#play-more-panel");
 const playMoreTitle = document.querySelector("#play-more-title");
 const playMoreDetail = document.querySelector("#play-more-detail");
-const copySeedLinkButton = document.querySelector("#copy-seed-link");
+const shareSeedLinkButton = document.querySelector("#share-seed-link");
 const newSeedGameButton = document.querySelector("#new-seed-game");
 
 const finalTiles = [];
@@ -169,6 +172,18 @@ function seedUrl(seed) {
   return url.toString();
 }
 
+function seedForShare() {
+  return isSeededGame ? daily.shareSeed : generateShareSeed();
+}
+
+function seedSharePayload(seed) {
+  return {
+    title: "Wordle in One",
+    text: `Wordle in One seed ${displaySeed(seed)}`,
+    url: seedUrl(seed)
+  };
+}
+
 function startSeededGame(seed = generateShareSeed()) {
   window.location.assign(seedUrl(seed));
 }
@@ -177,16 +192,34 @@ function isGameComplete() {
   return puzzleStates.every((state) => state.submitted && isSolved(state.pattern));
 }
 
-async function copySeedLink() {
-  if (!isSeededGame) {
-    return;
-  }
+async function copySeedLink(seed = seedForShare()) {
+  const payload = seedSharePayload(seed);
 
   try {
-    await navigator.clipboard.writeText(seedUrl(daily.shareSeed));
+    await navigator.clipboard.writeText(payload.url);
     showToast("Seed link copied", "success");
+    return true;
   } catch {
-    showToast("Copy failed", "error");
+    return false;
+  }
+}
+
+async function shareSeedGame(seed = seedForShare()) {
+  const payload = seedSharePayload(seed);
+
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {
+      await navigator.share(payload);
+      return;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return;
+    }
+  }
+
+  if (!(await copySeedLink(seed))) {
+    showToast("Share unavailable", "error");
   }
 }
 
@@ -450,14 +483,22 @@ function updatePlayMorePanel() {
   if (isSeededGame) {
     playMoreTitle.textContent = `Seed ${displaySeed(daily.shareSeed)} complete`;
     playMoreDetail.textContent = "Share this set or roll another seed.";
-    copySeedLinkButton.hidden = false;
+    shareSeedLinkButton.hidden = false;
+    shareSeedLinkButton.textContent = "Share";
     newSeedGameButton.textContent = "New seed";
   } else {
     playMoreTitle.textContent = "Daily complete";
-    playMoreDetail.textContent = "Start a seeded game you can share.";
-    copySeedLinkButton.hidden = true;
+    playMoreDetail.textContent = "Share a seed or keep playing.";
+    shareSeedLinkButton.hidden = false;
+    shareSeedLinkButton.textContent = "Share seed";
     newSeedGameButton.textContent = "Play more";
   }
+}
+
+function updateSeedOptions() {
+  seedOptionDetail.textContent = isSeededGame
+    ? `Seed ${displaySeed(daily.shareSeed)}`
+    : "Replayable set";
 }
 
 function updatePuzzleTabs() {
@@ -606,6 +647,7 @@ window.addEventListener("resize", syncViewportHeight);
 renderKeyboard();
 renderPuzzleTabs();
 renderActivePuzzle();
+updateSeedOptions();
 saveDailyState();
 
 document.addEventListener("keydown", (event) => {
@@ -656,8 +698,10 @@ for (const { button, closeButton, modal } of modalControls) {
   modal?.addEventListener("cancel", updateModalButtonStates);
 }
 
-copySeedLinkButton.addEventListener("click", copySeedLink);
+shareSeedLinkButton.addEventListener("click", () => shareSeedGame());
 newSeedGameButton.addEventListener("click", () => startSeededGame());
+shareSeedGameButton.addEventListener("click", () => shareSeedGame());
+startSeedGameButton.addEventListener("click", () => startSeededGame());
 
 revealButton.addEventListener("click", () => {
   const state = activeState();

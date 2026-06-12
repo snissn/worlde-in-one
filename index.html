@@ -55,7 +55,7 @@
             <span id="play-more-detail">Start a seeded game you can share.</span>
           </div>
           <div class="play-more-actions">
-            <button id="copy-seed-link" class="secondary-action" type="button" hidden>Copy link</button>
+            <button id="share-seed-link" class="secondary-action" type="button" hidden>Share seed</button>
             <button id="new-seed-game" class="primary-action" type="button">Play more</button>
           </div>
         </div>
@@ -86,7 +86,31 @@
         </div>
 
         <div class="modal-content answer-content">
-          <button id="reveal" class="reveal-action" type="button">
+          <section class="options-section" aria-labelledby="seed-options-title">
+            <div class="options-copy">
+              <h3 id="seed-options-title">Seeded game</h3>
+              <p id="seed-option-detail">Replayable set</p>
+            </div>
+            <div class="modal-action-row">
+              <button id="share-seed-game" class="modal-action share-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+                  <path d="m16 6-4-4-4 4" />
+                  <path d="M12 2v14" />
+                </svg>
+                Share seed
+              </button>
+              <button id="start-seed-game" class="modal-action seed-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-3.2-6.9" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                New seed
+              </button>
+            </div>
+          </section>
+
+          <button id="reveal" class="modal-action reveal-action" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
               <circle cx="12" cy="12" r="3" />
