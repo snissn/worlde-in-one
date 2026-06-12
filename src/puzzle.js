@@ -20,8 +20,9 @@ const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
 const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
 const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
-const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+export const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 const SHARE_SEED_LENGTH = 6;
+const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
 const SCRABBLE_POINTS = Object.freeze({
   a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
   j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
@@ -470,8 +471,10 @@ export function seededRandomFromString(input) {
 export function normalizeShareSeed(input) {
   return String(input ?? "")
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 12);
+    .split("")
+    .filter((character) => SHARE_SEED_CHARACTERS.has(character))
+    .join("")
+    .slice(0, SHARE_SEED_LENGTH);
 }
 
 export function generateShareSeed(rng = Math.random) {

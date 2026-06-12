@@ -1,11 +1,16 @@
 const DEFAULT_TITLE = "Wordle in One";
 const DEFAULT_DESCRIPTION = "Five Wordle boards. One possible answer each.";
+const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+const SHARE_SEED_LENGTH = 6;
+const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
 
 export function normalizeChallengeCode(input) {
   return String(input ?? "")
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 12);
+    .split("")
+    .filter((character) => SHARE_SEED_CHARACTERS.has(character))
+    .join("")
+    .slice(0, SHARE_SEED_LENGTH);
 }
 
 function displayChallengeCode(code) {

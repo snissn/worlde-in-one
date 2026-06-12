@@ -33,21 +33,19 @@ const KEY_STATE_PRIORITY = Object.freeze({
 
 const MAX_TOASTS = 5;
 const TOAST_DURATION_MS = 1900;
+const MIN_SHARE_SEED_LENGTH = 4;
 
 function seedFromUrl() {
   return normalizeShareSeed(new URL(window.location.href).searchParams.get("seed"));
 }
 
 const initialShareSeed = seedFromUrl();
-const daily = initialShareSeed.length >= 4
-  ? createSeededPuzzles(initialShareSeed, 5)
-  : createDailyPuzzles(new Date(), 5);
-const savedDailyState = loadSavedDailyState(daily);
-const puzzleStates = savedDailyState.states;
-const isSeededGame = daily.mode === "seed";
-
-let activePuzzleIndex = savedDailyState.activePuzzleIndex;
-let puzzle = daily.puzzles[activePuzzleIndex];
+let daily = null;
+let savedDailyState = null;
+let puzzleStates = [];
+let isSeededGame = false;
+let activePuzzleIndex = 0;
+let puzzle = null;
 let cachedChallengeSeed = null;
 
 const grid = document.querySelector("#grid");
@@ -55,6 +53,7 @@ const keyboard = document.querySelector("#keyboard");
 const toastRegion = document.querySelector("#toast-region");
 const remainingCount = document.querySelector("#remaining-count");
 const guessNumber = document.querySelector("#guess-number");
+const dailyPanel = document.querySelector(".daily-panel");
 const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
 const seedDateLink = document.querySelector("#seed-date-link");
@@ -86,7 +85,60 @@ function syncViewportHeight() {
   }
 }
 
+function waitForInitialPaint() {
+  return new Promise((resolve) => {
+    const scheduleFrame = window.requestAnimationFrame ?? ((callback) => window.setTimeout(callback, 0));
+    scheduleFrame(() => scheduleFrame(resolve));
+  });
+}
+
+function loadingLabel() {
+  return initialShareSeed.length >= MIN_SHARE_SEED_LENGTH
+    ? "Loading challenge"
+    : "Loading today's puzzles";
+}
+
+function renderLoadingState() {
+  const label = loadingLabel();
+  dailyDate.hidden = initialShareSeed.length >= MIN_SHARE_SEED_LENGTH;
+  seedDateLink.hidden = initialShareSeed.length < MIN_SHARE_SEED_LENGTH;
+  seedDateLink.removeAttribute("href");
+  seedDateLink.removeAttribute("title");
+  seedDateLink.textContent = "Challenge";
+  remainingCount.textContent = "1";
+  guessNumber.textContent = "Loading";
+  dailyTitle.textContent = label;
+  dailyPanel.hidden = true;
+  puzzleTabs.replaceChildren();
+  playMorePanel.hidden = true;
+  keyboard.replaceChildren();
+  grid.classList.add("loading");
+  grid.replaceChildren(Object.assign(document.createElement("div"), {
+    className: "loading-message",
+    textContent: `${label}...`
+  }));
+}
+
+function renderLoadError(error) {
+  console.error(error);
+  dailyTitle.textContent = "Challenge unavailable";
+  remainingCount.textContent = "0";
+  guessNumber.textContent = "Unavailable";
+  dailyPanel.hidden = true;
+  puzzleTabs.replaceChildren();
+  keyboard.replaceChildren();
+  grid.classList.add("loading");
+  grid.replaceChildren(Object.assign(document.createElement("div"), {
+    className: "loading-message error",
+    textContent: "This challenge could not load."
+  }));
+}
+
 function saveDailyState() {
+  if (!daily) {
+    return;
+  }
+
   persistDailyState(daily, activePuzzleIndex, puzzleStates);
 }
 
@@ -273,6 +325,7 @@ function makeTile(letter = "", state = null) {
 }
 
 function renderBoard() {
+  grid.classList.remove("loading");
   grid.innerHTML = "";
   finalTiles.length = 0;
   clueTiles.length = 0;
@@ -582,6 +635,7 @@ function switchPuzzle(index) {
 
 function renderPuzzleTabs() {
   puzzleTabs.innerHTML = "";
+  dailyPanel.hidden = false;
 
   for (const [index, tabPuzzle] of daily.puzzles.entries()) {
     const button = document.createElement("button");
@@ -682,94 +736,116 @@ function handleKeyboardAction(action) {
   }
 }
 
-syncViewportHeight();
-window.visualViewport?.addEventListener("resize", syncViewportHeight);
-window.visualViewport?.addEventListener("scroll", syncViewportHeight);
-window.addEventListener("resize", syncViewportHeight);
-
-renderKeyboard();
-renderPuzzleTabs();
-renderActivePuzzle();
-updateSeedOptions();
-saveDailyState();
-
-document.addEventListener("keydown", (event) => {
-  if (isAnyModalOpen()) {
-    return;
-  }
-
-  const target = event.target;
-  const isGameKeyButton = target instanceof HTMLButtonElement && target.classList.contains("key");
-  const isInteractiveTarget =
-    target instanceof HTMLElement &&
-    (target.matches("a, button, input, textarea, select, [role='button'], [contenteditable]") ||
-      target.isContentEditable);
-
-  if (isInteractiveTarget && !isGameKeyButton) {
-    return;
-  }
-
-  const state = activeState();
-  if (state.submitted) {
-    return;
-  }
-
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitGuess();
-  } else if (event.key === "Backspace") {
-    event.preventDefault();
-    syncGuess(state.guess.slice(0, -1));
-  } else if (/^[a-z]$/i.test(event.key) && state.guess.length < 5) {
-    event.preventDefault();
-    syncGuess(`${state.guess}${event.key}`);
-  }
-});
-
-for (const { button, closeButton, modal } of modalControls) {
-  button?.addEventListener("click", () => {
-    if (modal?.open) {
-      closeModal(modal);
+function bindEventHandlers() {
+  document.addEventListener("keydown", (event) => {
+    if (isAnyModalOpen()) {
       return;
     }
 
-    openModal(modal);
-  });
+    const target = event.target;
+    const isGameKeyButton = target instanceof HTMLButtonElement && target.classList.contains("key");
+    const isInteractiveTarget =
+      target instanceof HTMLElement &&
+      (target.matches("a, button, input, textarea, select, [role='button'], [contenteditable]") ||
+        target.isContentEditable);
 
-  closeButton?.addEventListener("click", () => closeModal(modal));
+    if (isInteractiveTarget && !isGameKeyButton) {
+      return;
+    }
 
-  modal?.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      closeModal(modal);
+    const state = activeState();
+    if (state.submitted) {
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitGuess();
+    } else if (event.key === "Backspace") {
+      event.preventDefault();
+      syncGuess(state.guess.slice(0, -1));
+    } else if (/^[a-z]$/i.test(event.key) && state.guess.length < 5) {
+      event.preventDefault();
+      syncGuess(`${state.guess}${event.key}`);
     }
   });
 
-  modal?.addEventListener("close", updateModalButtonStates);
-  modal?.addEventListener("cancel", updateModalButtonStates);
+  for (const { button, closeButton, modal } of modalControls) {
+    button?.addEventListener("click", () => {
+      if (modal?.open) {
+        closeModal(modal);
+        return;
+      }
+
+      openModal(modal);
+    });
+
+    closeButton?.addEventListener("click", () => closeModal(modal));
+
+    modal?.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal(modal);
+      }
+    });
+
+    modal?.addEventListener("close", updateModalButtonStates);
+    modal?.addEventListener("cancel", updateModalButtonStates);
+  }
+
+  shareSeedLinkButton.addEventListener("click", () => shareCompletion());
+  newSeedGameButton.addEventListener("click", () => startSeededGame());
+  shareSeedGameButton.addEventListener("click", () => shareChallenge());
+  startSeedGameButton.addEventListener("click", () => startSeededGame());
+  seedDateLink.addEventListener("click", (event) => {
+    if (!isSeededGame) {
+      return;
+    }
+
+    event.preventDefault();
+    shareChallenge(daily.shareSeed);
+  });
+
+  revealButton.addEventListener("click", () => {
+    const state = activeState();
+    if (state.submitted) {
+      return;
+    }
+
+    syncGuess(puzzle.answer);
+    showToast("Answer filled in");
+    closeModal(answerModal);
+    keyboard.querySelector('[data-key="enter"]')?.focus();
+  });
 }
 
-shareSeedLinkButton.addEventListener("click", () => shareCompletion());
-newSeedGameButton.addEventListener("click", () => startSeededGame());
-shareSeedGameButton.addEventListener("click", () => shareChallenge());
-startSeedGameButton.addEventListener("click", () => startSeededGame());
-seedDateLink.addEventListener("click", (event) => {
-  if (!isSeededGame) {
-    return;
-  }
+function loadPuzzleSet() {
+  daily = initialShareSeed.length >= MIN_SHARE_SEED_LENGTH
+    ? createSeededPuzzles(initialShareSeed, 5)
+    : createDailyPuzzles(new Date(), 5);
+  savedDailyState = loadSavedDailyState(daily);
+  puzzleStates = savedDailyState.states;
+  isSeededGame = daily.mode === "seed";
+  activePuzzleIndex = savedDailyState.activePuzzleIndex;
+  puzzle = daily.puzzles[activePuzzleIndex];
+}
 
-  event.preventDefault();
-  shareChallenge(daily.shareSeed);
-});
+async function initializeApp() {
+  syncViewportHeight();
+  window.visualViewport?.addEventListener("resize", syncViewportHeight);
+  window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+  window.addEventListener("resize", syncViewportHeight);
 
-revealButton.addEventListener("click", () => {
-  const state = activeState();
-  if (state.submitted) {
-    return;
-  }
+  renderLoadingState();
+  await waitForInitialPaint();
 
-  syncGuess(puzzle.answer);
-  showToast("Answer filled in");
-  closeModal(answerModal);
-  keyboard.querySelector('[data-key="enter"]')?.focus();
-});
-updateModalButtonStates();
+  loadPuzzleSet();
+  renderKeyboard();
+  renderPuzzleTabs();
+  renderActivePuzzle();
+  updateSeedOptions();
+  saveDailyState();
+  bindEventHandlers();
+  updateModalButtonStates();
+}
+
+initializeApp().catch(renderLoadError);
