@@ -184,9 +184,11 @@ function seedForShare() {
 }
 
 function seedSharePayload(seed) {
+  const challengeCode = displaySeed(seed);
+
   return {
-    title: "Wordle in One Challenge",
-    text: "Can you find the only possible answers?",
+    title: `Wordle in One Challenge ${challengeCode}`,
+    text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
     url: seedUrl(seed)
   };
 }

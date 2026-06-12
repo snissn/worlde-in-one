@@ -15,5 +15,6 @@
 /*.log
 /package-lock.json
 /wrangler.toml
+/worker.js
 /README.md
 /THIRD_PARTY_NOTICES.md
