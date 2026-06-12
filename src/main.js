@@ -48,6 +48,7 @@ const isSeededGame = daily.mode === "seed";
 
 let activePuzzleIndex = savedDailyState.activePuzzleIndex;
 let puzzle = daily.puzzles[activePuzzleIndex];
+let cachedChallengeSeed = null;
 
 const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
@@ -174,7 +175,12 @@ function seedUrl(seed) {
 }
 
 function seedForShare() {
-  return isSeededGame ? daily.shareSeed : generateShareSeed();
+  if (isSeededGame) {
+    return daily.shareSeed;
+  }
+
+  cachedChallengeSeed ??= generateShareSeed();
+  return cachedChallengeSeed;
 }
 
 function seedSharePayload(seed) {
@@ -185,7 +191,8 @@ function seedSharePayload(seed) {
   };
 }
 
-function startSeededGame(seed = generateShareSeed()) {
+function startSeededGame(seed = isSeededGame ? generateShareSeed() : seedForShare()) {
+  cachedChallengeSeed = null;
   window.location.assign(seedUrl(seed));
 }
 
@@ -667,7 +674,14 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.target instanceof HTMLButtonElement && !event.target.classList.contains("key")) {
+  const target = event.target;
+  const isGameKeyButton = target instanceof HTMLButtonElement && target.classList.contains("key");
+  const isInteractiveTarget =
+    target instanceof HTMLElement &&
+    (target.matches("a, button, input, textarea, select, [role='button'], [contenteditable]") ||
+      target.isContentEditable);
+
+  if (isInteractiveTarget && !isGameKeyButton) {
     return;
   }
 
