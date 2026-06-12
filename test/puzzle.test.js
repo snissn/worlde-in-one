@@ -4,12 +4,14 @@ import assert from "node:assert/strict";
 import {
   ANSWERS,
   CLASSIC_ANSWERS,
+  DIFFICULTY_BANDS,
   VALID_GUESSES,
   TileState,
   buildPuzzleForTarget,
   createDailyPuzzles,
   createPuzzle,
   dateKeyForPuzzle,
+  difficultyBandForScore,
   difficultyForPuzzle,
   honorsLockedClues,
   isSolved,
@@ -77,14 +79,25 @@ test("uses classic Wordle answers but validates uniqueness against every officia
   }
 });
 
-test("difficulty includes Scrabble letter values", () => {
+test("Scrabble utility is not a primary difficulty signal", () => {
   assert.equal(scrabbleScoreForWord("jewel"), 15);
   assert.equal(scrabbleScoreForWord("llama"), 7);
 
   const jewel = difficultyForPuzzle({ answer: "jewel", rows: [] });
   const llama = difficultyForPuzzle({ answer: "llama", rows: [] });
 
-  assert.ok(jewel.score > llama.score, "higher Scrabble words should sort harder when clues are tied");
+  assert.equal(jewel.score, llama.score, "same clue board should score the same regardless of answer letter rarity");
+  assert.equal(jewel.band.id, llama.band.id);
+  assert.equal("scrabbleScore" in jewel, false);
+});
+
+test("difficulty bands are fixed score ranges", () => {
+  for (const band of DIFFICULTY_BANDS) {
+    assert.equal(difficultyBandForScore(band.targetScore).id, band.id);
+  }
+
+  assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[1].minScore).id, DIFFICULTY_BANDS[1].id);
+  assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[2].minScore - 1).id, DIFFICULTY_BANDS[1].id);
 });
 
 test("solver starts with a common Wordle opener instead of a random probe", () => {
@@ -135,17 +148,19 @@ test("classic-only June 8 board is not unique when all valid guesses can be answ
   assert.ok(remainingAnswersForRows(classicRows).length > 1, "classic board should not be valid because multiple valid guesses fit");
 });
 
-test("daily puzzles are deterministic and sorted by difficulty", () => {
+test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
   assert.equal(dateKeyForPuzzle(new Date(2026, 0, 2)), "2026-01-02");
 
   const first = createDailyPuzzles("2026-06-05", 5);
   const second = createDailyPuzzles("2026-06-05", 5);
   const nextDay = createDailyPuzzles("2026-06-06", 5);
+  const expectedLabels = DIFFICULTY_BANDS.map((band) => band.label);
 
   assert.equal(first.dateKey, "2026-06-05");
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
   assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), nextDay.puzzles.map((puzzle) => puzzle.answer));
-  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), ["Easy", "Medium", "Tricky", "Hard", "Expert"]);
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficulty.band.label), expectedLabels);
 
   for (let i = 1; i < first.puzzles.length; i += 1) {
     assert.ok(
@@ -157,6 +172,17 @@ test("daily puzzles are deterministic and sorted by difficulty", () => {
   for (const puzzle of first.puzzles) {
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
     assert.equal(isTrivialPuzzle(puzzle), false);
+    assert.equal(puzzle.difficulty.band.label, puzzle.difficultyLabel);
+    assert.ok(puzzle.difficulty.score >= puzzle.difficulty.band.minScore);
+    assert.ok(puzzle.difficulty.score < puzzle.difficulty.band.maxScore);
+  }
+
+  for (const dateKey of ["2026-06-01", "2026-06-02", "2026-06-03"]) {
+    assert.deepEqual(
+      createDailyPuzzles(dateKey, 5).puzzles.map((puzzle) => puzzle.difficultyLabel),
+      expectedLabels,
+      `${dateKey} should include one puzzle from each band`
+    );
   }
 });
 
