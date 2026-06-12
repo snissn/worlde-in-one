@@ -5,22 +5,27 @@ import {
   ANSWERS,
   CLASSIC_ANSWERS,
   DIFFICULTY_BANDS,
+  SHARE_SEED_ALPHABET,
   VALID_GUESSES,
   TileState,
   buildPuzzleForTarget,
   createDailyPuzzles,
   createPuzzle,
+  createSeededPuzzles,
   dateKeyForPuzzle,
   difficultyBandForScore,
   difficultyForPuzzle,
+  generateShareSeed,
   honorsLockedClues,
   isSolved,
   isTrivialPuzzle,
   lockedCluesForRows,
+  normalizeShareSeed,
   remainingAnswersForRows,
   scoreGuess,
   scrabbleScoreForWord,
-  signature
+  signature,
+  violatedLockedClueTiles
 } from "../src/puzzle.js";
 
 function seededRandom(seed) {
@@ -96,6 +101,10 @@ test("difficulty bands are fixed score ranges", () => {
     assert.equal(difficultyBandForScore(band.targetScore).id, band.id);
   }
 
+  const hard = DIFFICULTY_BANDS.find((band) => band.id === "hard");
+  assert.equal(hard.representativeWindow, 1, "Hard should pick the closest upper-band representative");
+  assert.ok(hard.targetScore > (hard.minScore + hard.maxScore) / 2);
+
   assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[1].minScore).id, DIFFICULTY_BANDS[1].id);
   assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[2].minScore - 1).id, DIFFICULTY_BANDS[1].id);
 });
@@ -118,6 +127,14 @@ test("locked clue helper requires green spots and yellow letters", () => {
   assert.equal(honorsLockedClues("crown", rows), true);
   assert.equal(honorsLockedClues("cross", rows), false, "must include the yellow N");
   assert.equal(honorsLockedClues("crony", rows), false, "yellow N cannot stay in the same spot");
+  assert.deepEqual(violatedLockedClueTiles("crown", rows), []);
+  assert.deepEqual(violatedLockedClueTiles("cross", rows), [{ rowIndex: 0, tileIndex: 3 }]);
+  assert.deepEqual(violatedLockedClueTiles("crony", rows), [{ rowIndex: 0, tileIndex: 3 }]);
+  assert.deepEqual(violatedLockedClueTiles("spare", rows), [
+    { rowIndex: 0, tileIndex: 0 },
+    { rowIndex: 0, tileIndex: 1 },
+    { rowIndex: 0, tileIndex: 3 }
+  ]);
 });
 
 test("trivial swap puzzles are rejected", () => {
@@ -183,6 +200,33 @@ test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
       expectedLabels,
       `${dateKey} should include one puzzle from each band`
     );
+  }
+});
+
+test("share seeds generate deterministic replayable puzzle sets", () => {
+  const shareSeedPattern = new RegExp(`^[${SHARE_SEED_ALPHABET}]{6}$`);
+
+  assert.equal(normalizeShareSeed(" AbC-234! "), "abc234");
+  assert.equal(normalizeShareSeed("a b c"), "abc");
+  assert.equal(normalizeShareSeed("0o1ilx"), "x");
+  assert.match(generateShareSeed(() => 0), shareSeedPattern);
+  assert.throws(() => createSeededPuzzles("abc", 5), /at least four/);
+
+  const first = createSeededPuzzles("ABC-234", 5);
+  const second = createSeededPuzzles("abc234", 5);
+  const other = createSeededPuzzles("abc235", 5);
+  const expectedLabels = DIFFICULTY_BANDS.map((band) => band.label);
+
+  assert.equal(first.mode, "seed");
+  assert.equal(first.shareSeed, "abc234");
+  assert.equal(first.dateKey, "seed-abc234");
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
+  assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), other.puzzles.map((puzzle) => puzzle.answer));
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
+
+  for (const puzzle of first.puzzles) {
+    assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
+    assert.equal(isTrivialPuzzle(puzzle), false);
   }
 });
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Wordle in One</title>
+  <rect width="64" height="64" rx="14" fill="#07111d"/>
+  <rect x="8" y="8" width="48" height="48" rx="10" fill="#102033" stroke="#58a2ff" stroke-width="2"/>
+  <rect x="14" y="14" width="16" height="16" rx="4" fill="#c59a16"/>
+  <rect x="34" y="14" width="16" height="16" rx="4" fill="#3f9449"/>
+  <rect x="14" y="34" width="16" height="16" rx="4" fill="#303b49"/>
+  <rect x="34" y="34" width="16" height="16" rx="4" fill="#3f9449"/>
+</svg>

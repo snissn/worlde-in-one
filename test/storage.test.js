@@ -129,3 +129,20 @@ test("save daily state writes answer identities for future release recovery", ()
     { answer: "rebut", guess: "reb", submitted: false }
   ]);
 });
+
+test("seeded play state is isolated by puzzle set key", () => {
+  const daily = dailySet(["cigar"]);
+  const seed = {
+    dateKey: "seed-abc123",
+    puzzles: [{ answer: "cigar" }]
+  };
+  const storage = memoryStorage();
+
+  saveDailyState(daily, 0, [{ guess: "cigar", submitted: true }], storage);
+  saveDailyState(seed, 0, [{ guess: "ci", submitted: false }], storage);
+
+  assert.equal(JSON.parse(storage.getItem(storageKey(daily.dateKey))).states[0].guess, "cigar");
+  assert.equal(JSON.parse(storage.getItem(storageKey(seed.dateKey))).states[0].guess, "ci");
+  assert.equal(loadSavedDailyState(daily, storage).states[0].guess, "cigar");
+  assert.equal(loadSavedDailyState(seed, storage).states[0].guess, "ci");
+});

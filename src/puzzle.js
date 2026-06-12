@@ -20,6 +20,9 @@ const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
 const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
 const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
+export const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+const SHARE_SEED_LENGTH = 6;
+const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
 const SCRABBLE_POINTS = Object.freeze({
   a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
   j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
@@ -30,7 +33,7 @@ export const DIFFICULTY_BANDS = Object.freeze([
   Object.freeze({ id: "easy", label: "Easy", minScore: -Infinity, maxScore: 12200, targetScore: 11200 }),
   Object.freeze({ id: "medium", label: "Medium", minScore: 12200, maxScore: 14200, targetScore: 13200 }),
   Object.freeze({ id: "tricky", label: "Tricky", minScore: 14200, maxScore: 16500, targetScore: 15350 }),
-  Object.freeze({ id: "hard", label: "Hard", minScore: 16500, maxScore: 20500, targetScore: 18500 }),
+  Object.freeze({ id: "hard", label: "Hard", minScore: 16500, maxScore: 20500, targetScore: 19200, representativeWindow: 1 }),
   Object.freeze({ id: "expert", label: "Expert", minScore: 20500, maxScore: Infinity, targetScore: 23000 })
 ]);
 
@@ -230,6 +233,64 @@ function wordHonorsClues(wordInput, clues) {
   return true;
 }
 
+function addClueLocation(locations, seen, rowIndex, tileIndex) {
+  const key = `${rowIndex}:${tileIndex}`;
+  if (seen.has(key)) {
+    return;
+  }
+
+  seen.add(key);
+  locations.push({ rowIndex, tileIndex });
+}
+
+function addCorrectPositionClues(locations, seen, rows, position, letter) {
+  for (const [rowIndex, row] of rows.entries()) {
+    if (row.pattern[position] === TileState.CORRECT && row.word[position] === letter) {
+      addClueLocation(locations, seen, rowIndex, position);
+    }
+  }
+}
+
+function addForbiddenPositionClues(locations, seen, rows, position, letter) {
+  for (const [rowIndex, row] of rows.entries()) {
+    if (row.pattern[position] === TileState.PRESENT && row.word[position] === letter) {
+      addClueLocation(locations, seen, rowIndex, position);
+    }
+  }
+}
+
+function addRequiredLetterClues(locations, seen, rows, letter, requiredCount) {
+  let fallback = [];
+
+  for (const [rowIndex, row] of rows.entries()) {
+    const rowLocations = [];
+
+    for (let tileIndex = 0; tileIndex < row.word.length; tileIndex += 1) {
+      if (
+        row.word[tileIndex] === letter &&
+        (row.pattern[tileIndex] === TileState.CORRECT || row.pattern[tileIndex] === TileState.PRESENT)
+      ) {
+        rowLocations.push({ rowIndex, tileIndex });
+      }
+    }
+
+    if (rowLocations.length >= requiredCount) {
+      for (const location of rowLocations.slice(0, requiredCount)) {
+        addClueLocation(locations, seen, location.rowIndex, location.tileIndex);
+      }
+      return;
+    }
+
+    if (rowLocations.length > fallback.length) {
+      fallback = rowLocations;
+    }
+  }
+
+  for (const location of fallback) {
+    addClueLocation(locations, seen, location.rowIndex, location.tileIndex);
+  }
+}
+
 export function lockedCluesForRows(rows) {
   const clues = buildLockedClues(rows);
   return Object.freeze({
@@ -241,6 +302,41 @@ export function lockedCluesForRows(rows) {
 
 export function honorsLockedClues(word, rows) {
   return wordHonorsClues(word, buildLockedClues(rows));
+}
+
+export function violatedLockedClueTiles(wordInput, rows) {
+  const word = normalizeWord(wordInput);
+  if (word.length !== 5) {
+    return Object.freeze([]);
+  }
+
+  const clues = buildLockedClues(rows);
+  const locations = [];
+  const seen = new Set();
+  const counts = new Map();
+
+  for (let i = 0; i < 5; i += 1) {
+    const letter = word[i];
+    const required = clues.correctPositions[i];
+
+    if (required && letter !== required) {
+      addCorrectPositionClues(locations, seen, rows, i, required);
+    }
+
+    if (clues.forbiddenPositions[i].has(letter)) {
+      addForbiddenPositionClues(locations, seen, rows, i, letter);
+    }
+
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  for (const [letter, requiredCount] of clues.requiredCounts.entries()) {
+    if ((counts.get(letter) ?? 0) < requiredCount) {
+      addRequiredLetterClues(locations, seen, rows, letter, requiredCount);
+    }
+  }
+
+  return Object.freeze(locations.map((location) => Object.freeze(location)));
 }
 
 function matchingCandidates(candidates, guess, pattern) {
@@ -370,6 +466,25 @@ export function seededRandomFromString(input) {
     mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
     return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+export function normalizeShareSeed(input) {
+  return String(input ?? "")
+    .toLowerCase()
+    .split("")
+    .filter((character) => SHARE_SEED_CHARACTERS.has(character))
+    .join("")
+    .slice(0, SHARE_SEED_LENGTH);
+}
+
+export function generateShareSeed(rng = Math.random) {
+  let seed = "";
+
+  for (let i = 0; i < SHARE_SEED_LENGTH; i += 1) {
+    seed += SHARE_SEED_ALPHABET[Math.floor(rng() * SHARE_SEED_ALPHABET.length)];
+  }
+
+  return seed;
 }
 
 export function dateKeyForPuzzle(date = new Date()) {
@@ -684,7 +799,7 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
 
     // Keep each pick central to its band, then date-seed the finalist for daily variety.
     const finalist = candidates
-      .slice(0, DAILY_BAND_REPRESENTATIVE_WINDOW)
+      .slice(0, band.representativeWindow ?? DAILY_BAND_REPRESENTATIVE_WINDOW)
       .sort((left, right) => compareKeys(
         [
           hashString(`${seedKey}:${band.id}:${left.puzzle.answer}`),
@@ -704,9 +819,8 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
   return selected;
 }
 
-export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
-  const dateKey = dateKeyForPuzzle(date);
-  const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
+function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
+  const rng = seededRandomFromString(rngSeed);
   const answers = options.answers ?? answerBankForMode(options.answerBank);
   const candidates = options.candidates ?? VALID_GUESSES;
   const usesDifficultyBands = count === DIFFICULTY_BANDS.length;
@@ -735,7 +849,7 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
     });
 
     if (usesDifficultyBands && pool.length >= minPoolSize) {
-      selectedPuzzles = selectDifficultyBandSet(pool, dateKey);
+      selectedPuzzles = selectDifficultyBandSet(pool, setKey);
       if (selectedPuzzles) {
         break;
       }
@@ -747,11 +861,11 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   }
 
   if (pool.length < count) {
-    throw new Error(`Could only generate ${pool.length} daily puzzles for ${dateKey}`);
+    throw new Error(`Could only generate ${pool.length} puzzles for ${setKey}`);
   }
 
   const puzzles = usesDifficultyBands
-    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, dateKey))
+    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey))
     : selectDifficultySpread(pool, count);
 
   if (!puzzles) {
@@ -760,17 +874,45 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
       .filter((band) => !foundBands.has(band.id))
       .map((band) => band.label)
       .join(", ");
-    throw new Error(`Could not generate all daily difficulty bands for ${dateKey}; missing ${missing}`);
+    throw new Error(`Could not generate all difficulty bands for ${setKey}; missing ${missing}`);
   }
 
   return Object.freeze({
-    dateKey,
+    dateKey: setKey,
+    ...metadata,
     puzzles: Object.freeze(puzzles.map((puzzle, index) => Object.freeze({
       ...puzzle,
       dailyNumber: index + 1,
       difficultyLabel: usesDifficultyBands ? puzzle.difficulty.band.label : difficultyLabelForRank(index, count)
     })))
   });
+}
+
+export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
+  const dateKey = dateKeyForPuzzle(date);
+  return createPuzzleSet(
+    dateKey,
+    `wordle-in-one:${dateKey}`,
+    count,
+    options,
+    { mode: "daily" }
+  );
+}
+
+export function createSeededPuzzles(seedInput, count = 5, options = {}) {
+  const shareSeed = normalizeShareSeed(seedInput);
+
+  if (shareSeed.length < 4) {
+    throw new Error("Share seeds must include at least four letters or numbers");
+  }
+
+  return createPuzzleSet(
+    `seed-${shareSeed}`,
+    `wordle-in-one:share:${shareSeed}`,
+    count,
+    options,
+    { mode: "seed", shareSeed }
+  );
 }
 
 export { CLASSIC_ANSWERS, VALID_GUESSES };

@@ -4,6 +4,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Wordle in One</title>
+    <meta name="description" content="Five Wordle boards. One possible answer each." />
+    <meta name="theme-color" content="#07111d" />
+    <meta name="apple-mobile-web-app-title" content="Wordle in One" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Wordle in One" />
+    <meta property="og:title" content="Wordle in One" />
+    <meta property="og:description" content="Five Wordle boards. One possible answer each." />
+    <meta property="og:url" content="https://worlde-in-one.snissn.workers.dev/" />
+    <meta property="og:image" content="https://worlde-in-one.snissn.workers.dev/share-preview.png" />
+    <meta property="og:image:secure_url" content="https://worlde-in-one.snissn.workers.dev/share-preview.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Wordle in One challenge preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Wordle in One" />
+    <meta name="twitter:description" content="Five Wordle boards. One possible answer each." />
+    <meta name="twitter:image" content="https://worlde-in-one.snissn.workers.dev/share-preview.png" />
+    <meta name="twitter:image:alt" content="Wordle in One challenge preview" />
+    <link rel="canonical" href="https://worlde-in-one.snissn.workers.dev/" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -18,7 +40,7 @@
           </button>
 
           <div class="title-stack">
-            <h1 id="title">Wordle in One</h1>
+            <h1 id="title"><a class="title-link" href="/" aria-label="Wordle in One home">Wordle in One</a></h1>
           </div>
 
           <button id="help-button" class="icon-button" type="button" aria-label="Open how it works" aria-controls="help-modal" aria-expanded="false">
@@ -39,6 +61,7 @@
               <rect x="4" y="5" width="16" height="17" rx="2" />
             </svg>
             <time id="daily-date" datetime="">Daily</time>
+            <a id="seed-date-link" class="seed-date-link" href="" hidden>Challenge</a>
           </span>
           <span><strong id="remaining-count">1</strong> answer left</span>
           <span id="guess-number">#?</span>
@@ -47,6 +70,17 @@
         <div class="daily-panel" aria-label="Daily puzzle selector">
           <span id="daily-title" class="screen-reader-only">Puzzle 1 of 5</span>
           <div id="puzzle-tabs" class="puzzle-tabs"></div>
+        </div>
+
+        <div id="play-more-panel" class="play-more-panel" aria-live="polite" hidden>
+          <div class="play-more-copy">
+            <strong id="play-more-title">Today's challenge solved</strong>
+            <span id="play-more-detail">Invite friends to find all five, or start a new challenge.</span>
+          </div>
+          <div class="play-more-actions">
+            <button id="share-seed-link" class="primary-action" type="button" hidden>Challenge friends</button>
+            <button id="new-seed-game" class="secondary-action" type="button">New challenge</button>
+          </div>
         </div>
 
         <div class="board-wrap">
@@ -75,7 +109,31 @@
         </div>
 
         <div class="modal-content answer-content">
-          <button id="reveal" class="reveal-action" type="button">
+          <section class="options-section" aria-labelledby="seed-options-title">
+            <div class="options-copy">
+              <h3 id="seed-options-title">Challenge link</h3>
+              <p id="seed-option-detail">Create a replayable five-puzzle set.</p>
+            </div>
+            <div class="modal-action-row">
+              <button id="share-seed-game" class="modal-action share-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+                  <path d="m16 6-4-4-4 4" />
+                  <path d="M12 2v14" />
+                </svg>
+                Share link
+              </button>
+              <button id="start-seed-game" class="modal-action seed-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-3.2-6.9" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                New challenge
+              </button>
+            </div>
+          </section>
+
+          <button id="reveal" class="modal-action reveal-action" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
               <circle cx="12" cy="12" r="3" />
@@ -107,6 +165,9 @@
           <p>
             Each date creates the same five puzzles for everyone. The clues are
             chosen so exactly one answer remains.
+          </p>
+          <p>
+            Challenge links create another five-puzzle set that friends can replay.
           </p>
           <div class="legend" aria-label="Tile color legend">
             <span><i class="legend-tile correct"></i> right spot</span>

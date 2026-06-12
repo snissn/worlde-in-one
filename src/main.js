@@ -3,11 +3,15 @@ import {
   VALID_GUESSES,
   TileState,
   createDailyPuzzles,
+  createSeededPuzzles,
+  generateShareSeed,
   honorsLockedClues,
   isSolved,
   isValidGuess,
+  normalizeShareSeed,
   normalizeWord,
-  remainingAnswersForRows
+  remainingAnswersForRows,
+  violatedLockedClueTiles
 } from "./puzzle.js";
 import {
   loadSavedDailyState,
@@ -29,20 +33,30 @@ const KEY_STATE_PRIORITY = Object.freeze({
 
 const MAX_TOASTS = 5;
 const TOAST_DURATION_MS = 1900;
-const daily = createDailyPuzzles(new Date(), 5);
-const savedDailyState = loadSavedDailyState(daily);
-const puzzleStates = savedDailyState.states;
+const MIN_SHARE_SEED_LENGTH = 4;
 
-let activePuzzleIndex = savedDailyState.activePuzzleIndex;
-let puzzle = daily.puzzles[activePuzzleIndex];
+function seedFromUrl() {
+  return normalizeShareSeed(new URL(window.location.href).searchParams.get("seed"));
+}
+
+const initialShareSeed = seedFromUrl();
+let daily = null;
+let savedDailyState = null;
+let puzzleStates = [];
+let isSeededGame = false;
+let activePuzzleIndex = 0;
+let puzzle = null;
+let cachedChallengeSeed = null;
 
 const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
 const toastRegion = document.querySelector("#toast-region");
 const remainingCount = document.querySelector("#remaining-count");
 const guessNumber = document.querySelector("#guess-number");
+const dailyPanel = document.querySelector(".daily-panel");
 const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
+const seedDateLink = document.querySelector("#seed-date-link");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
@@ -51,8 +65,17 @@ const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
 const answerCloseButton = document.querySelector("#answer-close");
 const helpCloseButton = document.querySelector("#help-close");
+const seedOptionDetail = document.querySelector("#seed-option-detail");
+const shareSeedGameButton = document.querySelector("#share-seed-game");
+const startSeedGameButton = document.querySelector("#start-seed-game");
+const playMorePanel = document.querySelector("#play-more-panel");
+const playMoreTitle = document.querySelector("#play-more-title");
+const playMoreDetail = document.querySelector("#play-more-detail");
+const shareSeedLinkButton = document.querySelector("#share-seed-link");
+const newSeedGameButton = document.querySelector("#new-seed-game");
 
 const finalTiles = [];
+const clueTiles = [];
 const keyboardButtons = new Map();
 
 function syncViewportHeight() {
@@ -62,7 +85,60 @@ function syncViewportHeight() {
   }
 }
 
+function waitForInitialPaint() {
+  return new Promise((resolve) => {
+    const scheduleFrame = window.requestAnimationFrame ?? ((callback) => window.setTimeout(callback, 0));
+    scheduleFrame(() => scheduleFrame(resolve));
+  });
+}
+
+function loadingLabel() {
+  return initialShareSeed.length >= MIN_SHARE_SEED_LENGTH
+    ? "Loading challenge"
+    : "Loading today's puzzles";
+}
+
+function renderLoadingState() {
+  const label = loadingLabel();
+  dailyDate.hidden = initialShareSeed.length >= MIN_SHARE_SEED_LENGTH;
+  seedDateLink.hidden = initialShareSeed.length < MIN_SHARE_SEED_LENGTH;
+  seedDateLink.removeAttribute("href");
+  seedDateLink.removeAttribute("title");
+  seedDateLink.textContent = "Challenge";
+  remainingCount.textContent = "1";
+  guessNumber.textContent = "Loading";
+  dailyTitle.textContent = label;
+  dailyPanel.hidden = true;
+  puzzleTabs.replaceChildren();
+  playMorePanel.hidden = true;
+  keyboard.replaceChildren();
+  grid.classList.add("loading");
+  grid.replaceChildren(Object.assign(document.createElement("div"), {
+    className: "loading-message",
+    textContent: `${label}...`
+  }));
+}
+
+function renderLoadError(error) {
+  console.error(error);
+  dailyTitle.textContent = "Challenge unavailable";
+  remainingCount.textContent = "0";
+  guessNumber.textContent = "Unavailable";
+  dailyPanel.hidden = true;
+  puzzleTabs.replaceChildren();
+  keyboard.replaceChildren();
+  grid.classList.add("loading");
+  grid.replaceChildren(Object.assign(document.createElement("div"), {
+    className: "loading-message error",
+    textContent: "This challenge could not load."
+  }));
+}
+
 function saveDailyState() {
+  if (!daily) {
+    return;
+  }
+
   persistDailyState(daily, activePuzzleIndex, puzzleStates);
 }
 
@@ -104,8 +180,24 @@ function shakeFinalRow() {
   window.setTimeout(() => finalRow.classList.remove("shake"), 520);
 }
 
-function showInvalidGuess(text) {
+function shakeClueTiles(locations = []) {
+  for (const { rowIndex, tileIndex } of locations) {
+    const tile = clueTiles[rowIndex]?.[tileIndex];
+    if (!tile) {
+      continue;
+    }
+
+    tile.classList.remove("clue-shake");
+    void tile.offsetWidth;
+    tile.classList.add("clue-shake");
+    tile.addEventListener("animationend", () => tile.classList.remove("clue-shake"), { once: true });
+    window.setTimeout(() => tile.classList.remove("clue-shake"), 560);
+  }
+}
+
+function showInvalidGuess(text, clueLocations = []) {
   shakeFinalRow();
+  shakeClueTiles(clueLocations);
   showToast(text, "error");
 }
 
@@ -116,6 +208,103 @@ function formatDateKey(dateKey) {
     month: "short",
     day: "numeric"
   });
+}
+
+function displaySeed(seed) {
+  return seed.toUpperCase();
+}
+
+function gameLabel() {
+  return isSeededGame
+    ? `Challenge ${displaySeed(daily.shareSeed)}`
+    : formatDateKey(daily.dateKey);
+}
+
+function seedUrl(seed) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("seed", seed);
+  return url.toString();
+}
+
+function dailyUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("seed");
+  return url.toString();
+}
+
+function seedForShare() {
+  if (isSeededGame) {
+    return daily.shareSeed;
+  }
+
+  cachedChallengeSeed ??= generateShareSeed();
+  return cachedChallengeSeed;
+}
+
+function dailySharePayload() {
+  return {
+    title: "Today's Wordle in One",
+    text: "I finished today's challenge. Can you find all five only possible answers?",
+    url: dailyUrl()
+  };
+}
+
+function challengeSharePayload(seed) {
+  const challengeCode = displaySeed(seed);
+
+  return {
+    title: `Wordle in One Challenge ${challengeCode}`,
+    text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
+    url: seedUrl(seed)
+  };
+}
+
+function completionSharePayload() {
+  return isSeededGame ? challengeSharePayload(daily.shareSeed) : dailySharePayload();
+}
+
+function startSeededGame(seed = isSeededGame ? generateShareSeed() : seedForShare()) {
+  cachedChallengeSeed = null;
+  window.location.assign(seedUrl(seed));
+}
+
+function isGameComplete() {
+  return puzzleStates.every((state) => state.submitted && isSolved(state.pattern));
+}
+
+async function copySharePayload(payload, successMessage = "Share text copied") {
+  try {
+    await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
+    showToast(successMessage, "success");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function sharePayload(payload, successMessage = "Share text copied") {
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {
+      await navigator.share(payload);
+      return;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return;
+    }
+  }
+
+  if (!(await copySharePayload(payload, successMessage))) {
+    showToast("Share unavailable", "error");
+  }
+}
+
+async function shareChallenge(seed = seedForShare()) {
+  await sharePayload(challengeSharePayload(seed), "Challenge invite copied");
+}
+
+async function shareCompletion() {
+  await sharePayload(completionSharePayload(), isSeededGame ? "Challenge invite copied" : "Daily invite copied");
 }
 
 function makeTile(letter = "", state = null) {
@@ -136,16 +325,21 @@ function makeTile(letter = "", state = null) {
 }
 
 function renderBoard() {
+  grid.classList.remove("loading");
   grid.innerHTML = "";
   finalTiles.length = 0;
+  clueTiles.length = 0;
 
-  for (const row of puzzle.rows) {
+  for (const [rowIndex, row] of puzzle.rows.entries()) {
     const rowElement = document.createElement("div");
     rowElement.className = "word-row";
     rowElement.setAttribute("aria-label", `Prefilled guess ${row.word.toUpperCase()}`);
+    clueTiles[rowIndex] = [];
 
     for (let i = 0; i < 5; i += 1) {
-      rowElement.append(makeTile(row.word[i], row.pattern[i]));
+      const tile = makeTile(row.word[i], row.pattern[i]);
+      clueTiles[rowIndex].push(tile);
+      rowElement.append(tile);
     }
 
     grid.append(rowElement);
@@ -220,7 +414,7 @@ function submitGuess() {
   }
 
   if (!honorsLockedClues(state.guess, puzzle.rows)) {
-    showInvalidGuess("Doesn't match clues");
+    showInvalidGuess("Doesn't match clues", violatedLockedClueTiles(state.guess, puzzle.rows));
     return;
   }
 
@@ -354,9 +548,53 @@ function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
   guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
-  dailyDate.textContent = formatDateKey(daily.dateKey);
-  dailyDate.dateTime = daily.dateKey;
+  if (isSeededGame) {
+    const seedLabel = `Challenge ${displaySeed(daily.shareSeed)}`;
+    dailyDate.hidden = true;
+    dailyDate.removeAttribute("datetime");
+    seedDateLink.hidden = false;
+    seedDateLink.href = seedUrl(daily.shareSeed);
+    seedDateLink.textContent = "Challenge";
+    seedDateLink.title = seedLabel;
+    seedDateLink.setAttribute("aria-label", `Share ${seedLabel} link`);
+  } else {
+    dailyDate.hidden = false;
+    dailyDate.textContent = gameLabel();
+    dailyDate.dateTime = daily.dateKey;
+    seedDateLink.hidden = true;
+    seedDateLink.removeAttribute("href");
+    seedDateLink.removeAttribute("title");
+  }
   dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
+}
+
+function updatePlayMorePanel() {
+  const complete = isGameComplete();
+  playMorePanel.hidden = !complete;
+
+  if (!complete) {
+    return;
+  }
+
+  if (isSeededGame) {
+    playMoreTitle.textContent = "Challenge complete";
+    playMoreDetail.textContent = `Share challenge ${displaySeed(daily.shareSeed)}, or start a new one.`;
+    shareSeedLinkButton.hidden = false;
+    shareSeedLinkButton.textContent = "Share challenge";
+    newSeedGameButton.textContent = "New challenge";
+  } else {
+    playMoreTitle.textContent = "Today's challenge solved";
+    playMoreDetail.textContent = "Invite friends to find all five, or start a new challenge.";
+    shareSeedLinkButton.hidden = false;
+    shareSeedLinkButton.textContent = "Challenge friends";
+    newSeedGameButton.textContent = "New challenge";
+  }
+}
+
+function updateSeedOptions() {
+  seedOptionDetail.textContent = isSeededGame
+    ? `Challenge code ${displaySeed(daily.shareSeed)}`
+    : "Create a replayable five-puzzle set.";
 }
 
 function updatePuzzleTabs() {
@@ -375,6 +613,8 @@ function updatePuzzleTabs() {
       `Puzzle ${index + 1}, ${tabPuzzle.difficultyLabel}${tabState.submitted ? ", completed" : ""}`
     );
   }
+
+  updatePlayMorePanel();
 }
 
 function renderActivePuzzle() {
@@ -395,6 +635,7 @@ function switchPuzzle(index) {
 
 function renderPuzzleTabs() {
   puzzleTabs.innerHTML = "";
+  dailyPanel.hidden = false;
 
   for (const [index, tabPuzzle] of daily.puzzles.entries()) {
     const button = document.createElement("button");
@@ -495,73 +736,116 @@ function handleKeyboardAction(action) {
   }
 }
 
-syncViewportHeight();
-window.visualViewport?.addEventListener("resize", syncViewportHeight);
-window.visualViewport?.addEventListener("scroll", syncViewportHeight);
-window.addEventListener("resize", syncViewportHeight);
-
-renderKeyboard();
-renderPuzzleTabs();
-renderActivePuzzle();
-saveDailyState();
-
-document.addEventListener("keydown", (event) => {
-  if (isAnyModalOpen()) {
-    return;
-  }
-
-  if (event.target instanceof HTMLButtonElement && !event.target.classList.contains("key")) {
-    return;
-  }
-
-  const state = activeState();
-  if (state.submitted) {
-    return;
-  }
-
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitGuess();
-  } else if (event.key === "Backspace") {
-    event.preventDefault();
-    syncGuess(state.guess.slice(0, -1));
-  } else if (/^[a-z]$/i.test(event.key) && state.guess.length < 5) {
-    event.preventDefault();
-    syncGuess(`${state.guess}${event.key}`);
-  }
-});
-
-for (const { button, closeButton, modal } of modalControls) {
-  button?.addEventListener("click", () => {
-    if (modal?.open) {
-      closeModal(modal);
+function bindEventHandlers() {
+  document.addEventListener("keydown", (event) => {
+    if (isAnyModalOpen()) {
       return;
     }
 
-    openModal(modal);
-  });
+    const target = event.target;
+    const isGameKeyButton = target instanceof HTMLButtonElement && target.classList.contains("key");
+    const isInteractiveTarget =
+      target instanceof HTMLElement &&
+      (target.matches("a, button, input, textarea, select, [role='button'], [contenteditable]") ||
+        target.isContentEditable);
 
-  closeButton?.addEventListener("click", () => closeModal(modal));
+    if (isInteractiveTarget && !isGameKeyButton) {
+      return;
+    }
 
-  modal?.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      closeModal(modal);
+    const state = activeState();
+    if (state.submitted) {
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitGuess();
+    } else if (event.key === "Backspace") {
+      event.preventDefault();
+      syncGuess(state.guess.slice(0, -1));
+    } else if (/^[a-z]$/i.test(event.key) && state.guess.length < 5) {
+      event.preventDefault();
+      syncGuess(`${state.guess}${event.key}`);
     }
   });
 
-  modal?.addEventListener("close", updateModalButtonStates);
-  modal?.addEventListener("cancel", updateModalButtonStates);
-}
+  for (const { button, closeButton, modal } of modalControls) {
+    button?.addEventListener("click", () => {
+      if (modal?.open) {
+        closeModal(modal);
+        return;
+      }
 
-revealButton.addEventListener("click", () => {
-  const state = activeState();
-  if (state.submitted) {
-    return;
+      openModal(modal);
+    });
+
+    closeButton?.addEventListener("click", () => closeModal(modal));
+
+    modal?.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal(modal);
+      }
+    });
+
+    modal?.addEventListener("close", updateModalButtonStates);
+    modal?.addEventListener("cancel", updateModalButtonStates);
   }
 
-  syncGuess(puzzle.answer);
-  showToast("Answer filled in");
-  closeModal(answerModal);
-  keyboard.querySelector('[data-key="enter"]')?.focus();
-});
-updateModalButtonStates();
+  shareSeedLinkButton.addEventListener("click", () => shareCompletion());
+  newSeedGameButton.addEventListener("click", () => startSeededGame());
+  shareSeedGameButton.addEventListener("click", () => shareChallenge());
+  startSeedGameButton.addEventListener("click", () => startSeededGame());
+  seedDateLink.addEventListener("click", (event) => {
+    if (!isSeededGame) {
+      return;
+    }
+
+    event.preventDefault();
+    shareChallenge(daily.shareSeed);
+  });
+
+  revealButton.addEventListener("click", () => {
+    const state = activeState();
+    if (state.submitted) {
+      return;
+    }
+
+    syncGuess(puzzle.answer);
+    showToast("Answer filled in");
+    closeModal(answerModal);
+    keyboard.querySelector('[data-key="enter"]')?.focus();
+  });
+}
+
+function loadPuzzleSet() {
+  daily = initialShareSeed.length >= MIN_SHARE_SEED_LENGTH
+    ? createSeededPuzzles(initialShareSeed, 5)
+    : createDailyPuzzles(new Date(), 5);
+  savedDailyState = loadSavedDailyState(daily);
+  puzzleStates = savedDailyState.states;
+  isSeededGame = daily.mode === "seed";
+  activePuzzleIndex = savedDailyState.activePuzzleIndex;
+  puzzle = daily.puzzles[activePuzzleIndex];
+}
+
+async function initializeApp() {
+  syncViewportHeight();
+  window.visualViewport?.addEventListener("resize", syncViewportHeight);
+  window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+  window.addEventListener("resize", syncViewportHeight);
+
+  renderLoadingState();
+  await waitForInitialPaint();
+
+  loadPuzzleSet();
+  renderKeyboard();
+  renderPuzzleTabs();
+  renderActivePuzzle();
+  updateSeedOptions();
+  saveDailyState();
+  bindEventHandlers();
+  updateModalButtonStates();
+}
+
+initializeApp().catch(renderLoadError);
