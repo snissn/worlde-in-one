@@ -229,6 +229,32 @@ h1 {
   font-size: 0.9rem;
 }
 
+.seed-date-link {
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid rgb(88 162 255 / 30%);
+  border-radius: 999px;
+  color: rgb(231 240 255 / 92%);
+  background: rgb(88 162 255 / 14%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  line-height: 1;
+  text-decoration: none;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.seed-date-link:hover,
+.seed-date-link:focus-visible {
+  border-color: rgb(88 162 255 / 62%);
+  background: rgb(88 162 255 / 22%);
+  box-shadow: 0 0 0 3px rgb(88 162 255 / 16%), inset 0 1px 0 rgb(255 255 255 / 10%);
+  outline: none;
+}
+
+.seed-date-link[hidden] {
+  display: none;
+}
+
 .daily-panel {
   padding: 8px;
   border: 1px solid var(--line);

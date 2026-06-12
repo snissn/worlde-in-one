@@ -56,6 +56,7 @@ const remainingCount = document.querySelector("#remaining-count");
 const guessNumber = document.querySelector("#guess-number");
 const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
+const seedDateLink = document.querySelector("#seed-date-link");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
@@ -463,11 +464,22 @@ function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
   guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
-  dailyDate.textContent = gameLabel();
   if (isSeededGame) {
+    const seedLabel = `Seed ${displaySeed(daily.shareSeed)}`;
+    dailyDate.hidden = true;
     dailyDate.removeAttribute("datetime");
+    seedDateLink.hidden = false;
+    seedDateLink.href = seedUrl(daily.shareSeed);
+    seedDateLink.textContent = displaySeed(daily.shareSeed);
+    seedDateLink.title = seedLabel;
+    seedDateLink.setAttribute("aria-label", `Share ${seedLabel}`);
   } else {
+    dailyDate.hidden = false;
+    dailyDate.textContent = gameLabel();
     dailyDate.dateTime = daily.dateKey;
+    seedDateLink.hidden = true;
+    seedDateLink.removeAttribute("href");
+    seedDateLink.removeAttribute("title");
   }
   dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
 }
@@ -702,6 +714,14 @@ shareSeedLinkButton.addEventListener("click", () => shareSeedGame());
 newSeedGameButton.addEventListener("click", () => startSeededGame());
 shareSeedGameButton.addEventListener("click", () => shareSeedGame());
 startSeedGameButton.addEventListener("click", () => startSeededGame());
+seedDateLink.addEventListener("click", (event) => {
+  if (!isSeededGame) {
+    return;
+  }
+
+  event.preventDefault();
+  shareSeedGame(daily.shareSeed);
+});
 
 revealButton.addEventListener("click", () => {
   const state = activeState();
