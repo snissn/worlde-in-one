@@ -186,6 +186,23 @@ h1 {
   font-weight: 900;
 }
 
+.title-link {
+  color: inherit;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.title-link:hover {
+  color: rgb(226 237 255);
+  text-shadow: 0 0 18px rgb(88 162 255 / 38%);
+}
+
+.title-link:focus-visible {
+  color: rgb(226 237 255);
+  outline: 3px solid rgb(88 162 255 / 58%);
+  outline-offset: 4px;
+}
+
 .puzzle-meta {
   min-height: 20px;
   display: flex;
