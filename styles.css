@@ -391,9 +391,8 @@ h1 {
 
 .play-more-copy strong,
 .play-more-copy span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .play-more-copy strong {
@@ -407,18 +406,21 @@ h1 {
   color: rgb(213 226 239 / 74%);
   font-size: 0.76rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.24;
 }
 
 .play-more-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .primary-action,
 .secondary-action {
   height: 38px;
+  min-width: 104px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -444,6 +446,7 @@ h1 {
   background: rgb(12 23 36 / 74%);
 }
 
+.primary-action[hidden],
 .secondary-action[hidden] {
   display: none;
 }
@@ -1229,6 +1232,7 @@ h1 {
   .primary-action,
   .secondary-action {
     height: clamp(34px, 4.4dvh, 38px);
+    min-width: clamp(94px, 24vw, 112px);
     padding: 0 clamp(10px, 2.4vw, 13px);
     border-radius: 9px;
     font-size: clamp(0.68rem, 1.18dvh, 0.78rem);
@@ -1360,6 +1364,22 @@ h1 {
 
   .puzzle-tab small {
     font-size: clamp(0.46rem, 0.94dvh, 0.58rem);
+  }
+
+  .play-more-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .play-more-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .primary-action,
+  .secondary-action {
+    min-width: 0;
+    width: 100%;
   }
 
   .board-wrap {

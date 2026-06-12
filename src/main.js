@@ -174,6 +174,12 @@ function seedUrl(seed) {
   return url.toString();
 }
 
+function dailyUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("seed");
+  return url.toString();
+}
+
 function seedForShare() {
   if (isSeededGame) {
     return daily.shareSeed;
@@ -183,7 +189,15 @@ function seedForShare() {
   return cachedChallengeSeed;
 }
 
-function seedSharePayload(seed) {
+function dailySharePayload() {
+  return {
+    title: "Today's Wordle in One",
+    text: "I finished today's challenge. Can you find all five only possible answers?",
+    url: dailyUrl()
+  };
+}
+
+function challengeSharePayload(seed) {
   const challengeCode = displaySeed(seed);
 
   return {
@@ -191,6 +205,10 @@ function seedSharePayload(seed) {
     text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
     url: seedUrl(seed)
   };
+}
+
+function completionSharePayload() {
+  return isSeededGame ? challengeSharePayload(daily.shareSeed) : dailySharePayload();
 }
 
 function startSeededGame(seed = isSeededGame ? generateShareSeed() : seedForShare()) {
@@ -202,21 +220,17 @@ function isGameComplete() {
   return puzzleStates.every((state) => state.submitted && isSolved(state.pattern));
 }
 
-async function copySeedLink(seed = seedForShare()) {
-  const payload = seedSharePayload(seed);
-
+async function copySharePayload(payload, successMessage = "Share text copied") {
   try {
-    await navigator.clipboard.writeText(payload.url);
-    showToast("Challenge link copied", "success");
+    await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
+    showToast(successMessage, "success");
     return true;
   } catch {
     return false;
   }
 }
 
-async function shareSeedGame(seed = seedForShare()) {
-  const payload = seedSharePayload(seed);
-
+async function sharePayload(payload, successMessage = "Share text copied") {
   try {
     if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {
       await navigator.share(payload);
@@ -228,9 +242,17 @@ async function shareSeedGame(seed = seedForShare()) {
     }
   }
 
-  if (!(await copySeedLink(seed))) {
+  if (!(await copySharePayload(payload, successMessage))) {
     showToast("Share unavailable", "error");
   }
+}
+
+async function shareChallenge(seed = seedForShare()) {
+  await sharePayload(challengeSharePayload(seed), "Challenge invite copied");
+}
+
+async function shareCompletion() {
+  await sharePayload(completionSharePayload(), isSeededGame ? "Challenge invite copied" : "Daily invite copied");
 }
 
 function makeTile(letter = "", state = null) {
@@ -503,16 +525,16 @@ function updatePlayMorePanel() {
 
   if (isSeededGame) {
     playMoreTitle.textContent = "Challenge complete";
-    playMoreDetail.textContent = "Share this set or start another challenge.";
+    playMoreDetail.textContent = `Share challenge ${displaySeed(daily.shareSeed)}, or start a new one.`;
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Share link";
+    shareSeedLinkButton.textContent = "Share challenge";
     newSeedGameButton.textContent = "New challenge";
   } else {
-    playMoreTitle.textContent = "Daily complete";
-    playMoreDetail.textContent = "Send a fresh challenge or keep playing.";
+    playMoreTitle.textContent = "Today's challenge solved";
+    playMoreDetail.textContent = "Invite friends to find all five, or start a new challenge.";
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Share link";
-    newSeedGameButton.textContent = "Play more";
+    shareSeedLinkButton.textContent = "Challenge friends";
+    newSeedGameButton.textContent = "New challenge";
   }
 }
 
@@ -726,9 +748,9 @@ for (const { button, closeButton, modal } of modalControls) {
   modal?.addEventListener("cancel", updateModalButtonStates);
 }
 
-shareSeedLinkButton.addEventListener("click", () => shareSeedGame());
+shareSeedLinkButton.addEventListener("click", () => shareCompletion());
 newSeedGameButton.addEventListener("click", () => startSeededGame());
-shareSeedGameButton.addEventListener("click", () => shareSeedGame());
+shareSeedGameButton.addEventListener("click", () => shareChallenge());
 startSeedGameButton.addEventListener("click", () => startSeededGame());
 seedDateLink.addEventListener("click", (event) => {
   if (!isSeededGame) {
@@ -736,7 +758,7 @@ seedDateLink.addEventListener("click", (event) => {
   }
 
   event.preventDefault();
-  shareSeedGame(daily.shareSeed);
+  shareChallenge(daily.shareSeed);
 });
 
 revealButton.addEventListener("click", () => {
