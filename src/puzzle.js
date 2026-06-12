@@ -339,6 +339,58 @@ export function violatedLockedClueTiles(wordInput, rows) {
   return Object.freeze(locations.map((location) => Object.freeze(location)));
 }
 
+function letterCounts(word) {
+  const counts = new Map();
+
+  for (const letter of word) {
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+export function violatedExcludedLetterTiles(wordInput, rows) {
+  const word = normalizeWord(wordInput);
+  if (word.length !== 5) {
+    return Object.freeze([]);
+  }
+
+  const guessCounts = letterCounts(word);
+  const locations = [];
+  const seen = new Set();
+
+  for (const [rowIndex, row] of rows.entries()) {
+    const coloredCounts = new Map();
+    const absentLetters = new Set();
+
+    for (let tileIndex = 0; tileIndex < row.word.length; tileIndex += 1) {
+      const letter = row.word[tileIndex];
+      const state = row.pattern[tileIndex];
+
+      if (state === TileState.CORRECT || state === TileState.PRESENT) {
+        coloredCounts.set(letter, (coloredCounts.get(letter) ?? 0) + 1);
+      } else if (state === TileState.ABSENT) {
+        absentLetters.add(letter);
+      }
+    }
+
+    for (const letter of absentLetters) {
+      const maxAllowed = coloredCounts.get(letter) ?? 0;
+      if ((guessCounts.get(letter) ?? 0) <= maxAllowed) {
+        continue;
+      }
+
+      for (let tileIndex = 0; tileIndex < row.word.length; tileIndex += 1) {
+        if (row.word[tileIndex] === letter && row.pattern[tileIndex] === TileState.ABSENT) {
+          addClueLocation(locations, seen, rowIndex, tileIndex);
+        }
+      }
+    }
+  }
+
+  return Object.freeze(locations.map((location) => Object.freeze(location)));
+}
+
 function matchingCandidates(candidates, guess, pattern) {
   const wanted = signature(pattern);
   return candidates.filter((candidate) => signature(scoreGuess(guess, candidate)) === wanted);
@@ -485,6 +537,30 @@ export function generateShareSeed(rng = Math.random) {
   }
 
   return seed;
+}
+
+function normalizeChallengeSequenceNumber(sequenceNumber) {
+  const normalized = Math.trunc(Number(sequenceNumber));
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : 1;
+}
+
+export function dailyChallengeSeed(date = new Date(), sequenceNumber = 1) {
+  const dateKey = dateKeyForPuzzle(date);
+  const sequence = normalizeChallengeSequenceNumber(sequenceNumber);
+  return generateShareSeed(seededRandomFromString(`wordle-in-one:challenge:${dateKey}:${sequence}`));
+}
+
+export function dailyChallengeSeedIndex(seedInput, date = new Date(), maxSequenceNumber = 512) {
+  const seed = normalizeShareSeed(seedInput);
+  const maxSequence = normalizeChallengeSequenceNumber(maxSequenceNumber);
+
+  for (let sequence = 1; sequence <= maxSequence; sequence += 1) {
+    if (dailyChallengeSeed(date, sequence) === seed) {
+      return sequence;
+    }
+  }
+
+  return null;
 }
 
 export function dateKeyForPuzzle(date = new Date()) {
