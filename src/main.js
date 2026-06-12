@@ -203,13 +203,75 @@ function showInvalidGuess(text, clueLocations = []) {
   showToast(text, "error");
 }
 
+function excludedLetterGroups(locations = []) {
+  const groups = new Map();
+
+  for (const { rowIndex, tileIndex } of locations) {
+    const row = puzzle.rows[rowIndex];
+    const letter = row?.word[tileIndex];
+    if (!row || !letter) {
+      continue;
+    }
+
+    const coloredCount = row.pattern.reduce((count, state, index) => (
+      row.word[index] === letter && (state === TileState.CORRECT || state === TileState.PRESENT)
+        ? count + 1
+        : count
+    ), 0);
+    const existing = groups.get(letter) ?? { letter, maxAllowed: 0 };
+    existing.maxAllowed = Math.max(existing.maxAllowed, coloredCount);
+    groups.set(letter, existing);
+  }
+
+  return [...groups.values()];
+}
+
+function excludedLetterEvidenceTiles(locations = []) {
+  const evidence = [...locations];
+  const seen = new Set(locations.map(({ rowIndex, tileIndex }) => `${rowIndex}:${tileIndex}`));
+
+  for (const { rowIndex, tileIndex } of locations) {
+    const row = puzzle.rows[rowIndex];
+    const letter = row?.word[tileIndex];
+    if (!row || !letter) {
+      continue;
+    }
+
+    for (let index = 0; index < row.word.length; index += 1) {
+      if (
+        row.word[index] === letter &&
+        (row.pattern[index] === TileState.CORRECT || row.pattern[index] === TileState.PRESENT)
+      ) {
+        const key = `${rowIndex}:${index}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          evidence.push({ rowIndex, tileIndex: index });
+        }
+      }
+    }
+  }
+
+  return evidence;
+}
+
 function excludedLetterMessage(locations = []) {
-  const letters = [...new Set(locations
-    .map(({ rowIndex, tileIndex }) => puzzle.rows[rowIndex]?.word[tileIndex]?.toUpperCase())
-    .filter(Boolean))];
+  const groups = excludedLetterGroups(locations);
+  const letters = groups.map(({ letter }) => letter.toUpperCase());
 
   if (letters.length === 1) {
+    const [{ maxAllowed }] = groups;
+    if (maxAllowed > 0) {
+      const countLabel = maxAllowed === 1 ? "one" : String(maxAllowed);
+      const letterLabel = maxAllowed === 1 ? letters[0] : `${letters[0]}s`;
+      const verb = maxAllowed === 1 ? "fits" : "fit";
+      return `Only ${countLabel} ${letterLabel} ${verb} the clues`;
+    }
+
     return `Letter ${letters[0]} was already ruled out`;
+  }
+
+  if (groups.some(({ maxAllowed }) => maxAllowed > 0)) {
+    return "Those letters repeat more than the clues allow";
   }
 
   return "Those letters were already ruled out";
@@ -445,7 +507,7 @@ function submitGuess() {
 
   const excludedLetterTiles = violatedExcludedLetterTiles(state.guess, puzzle.rows);
   if (excludedLetterTiles.length > 0) {
-    showInvalidGuess(excludedLetterMessage(excludedLetterTiles), excludedLetterTiles);
+    showInvalidGuess(excludedLetterMessage(excludedLetterTiles), excludedLetterEvidenceTiles(excludedLetterTiles));
     return;
   }
 

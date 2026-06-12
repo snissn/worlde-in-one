@@ -155,6 +155,14 @@ test("excluded clue helper points at black letters that rule out a guess", () =>
   assert.deepEqual(violatedExcludedLetterTiles("eagle", duplicateRows), [
     { rowIndex: 0, tileIndex: 3 }
   ]);
+
+  const udderRows = ["crane", "sorer", "liter", "heder"]
+    .map((word) => ({ word, pattern: scoreGuess(word, "udder") }));
+  assert.deepEqual(udderRows.map((row) => signature(row.pattern)), ["apaap", "aaacc", "aaacc", "aaccc"]);
+  assert.equal(honorsLockedClues("ruder", udderRows), true, "RUDER satisfies the green/yellow placements");
+  assert.deepEqual(violatedExcludedLetterTiles("ruder", udderRows), [
+    { rowIndex: 1, tileIndex: 2 }
+  ], "the black R in SORER limits the answer to one R");
 });
 
 test("trivial swap puzzles are rejected", () => {
