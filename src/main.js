@@ -43,7 +43,6 @@ const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
 const helpButton = document.querySelector("#help-button");
-const boardWrap = document.querySelector(".board-wrap");
 const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
 const answerCloseButton = document.querySelector("#answer-close");
@@ -233,9 +232,6 @@ function renderBoard() {
   }
 
   grid.append(finalRow);
-  const rowCount = grid.children.length;
-  grid.dataset.rows = String(rowCount);
-  boardWrap?.setAttribute("data-rows", String(rowCount));
 
   const state = activeState();
   updateFinalTiles(state.guess, state.submitted ? state.pattern : null);

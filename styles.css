@@ -956,25 +956,9 @@ h1 {
   }
 
   .board-wrap {
-    --board-max: clamp(270px, 38dvh, 350px);
+    --board-max: clamp(300px, 41dvh, 390px);
     width: min(100%, var(--board-max));
     margin: 0 auto;
-  }
-
-  .board-wrap[data-rows="3"] {
-    --board-max: clamp(300px, 43dvh, 370px);
-  }
-
-  .board-wrap[data-rows="4"] {
-    --board-max: clamp(286px, 41dvh, 360px);
-  }
-
-  .board-wrap[data-rows="5"] {
-    --board-max: clamp(260px, 38dvh, 348px);
-  }
-
-  .board-wrap[data-rows="6"] {
-    --board-max: clamp(224px, 34.6dvh, 334px);
   }
 
   .grid,
@@ -984,7 +968,7 @@ h1 {
 
   .tile {
     border-radius: 7px;
-    font-size: clamp(1.72rem, 5.05dvh, 2.42rem);
+    font-size: clamp(1.84rem, 5.7dvh, 2.72rem);
   }
 
   .keyboard {
@@ -1078,26 +1062,10 @@ h1 {
   }
 
   .board-wrap {
-    --board-max: clamp(236px, 38dvh, 300px);
-  }
-
-  .board-wrap[data-rows="3"] {
-    --board-max: clamp(258px, 42dvh, 320px);
-  }
-
-  .board-wrap[data-rows="4"] {
-    --board-max: clamp(246px, 40dvh, 310px);
-  }
-
-  .board-wrap[data-rows="5"] {
-    --board-max: clamp(226px, 37dvh, 292px);
-  }
-
-  .board-wrap[data-rows="6"] {
-    --board-max: clamp(212px, 35dvh, 278px);
+    --board-max: clamp(240px, 42dvh, 300px);
   }
 
   .tile {
-    font-size: clamp(1.6rem, 4.8dvh, 2.1rem);
+    font-size: clamp(1.72rem, 5.15dvh, 2.28rem);
   }
 }
