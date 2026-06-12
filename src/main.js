@@ -4,13 +4,15 @@ import {
   TileState,
   createDailyPuzzles,
   createSeededPuzzles,
-  generateShareSeed,
+  dailyChallengeSeed,
+  dailyChallengeSeedIndex,
   honorsLockedClues,
   isSolved,
   isValidGuess,
   normalizeShareSeed,
   normalizeWord,
   remainingAnswersForRows,
+  violatedExcludedLetterTiles,
   violatedLockedClueTiles
 } from "./puzzle.js";
 import {
@@ -201,6 +203,18 @@ function showInvalidGuess(text, clueLocations = []) {
   showToast(text, "error");
 }
 
+function excludedLetterMessage(locations = []) {
+  const letters = [...new Set(locations
+    .map(({ rowIndex, tileIndex }) => puzzle.rows[rowIndex]?.word[tileIndex]?.toUpperCase())
+    .filter(Boolean))];
+
+  if (letters.length === 1) {
+    return `Letter ${letters[0]} was already ruled out`;
+  }
+
+  return "Those letters were already ruled out";
+}
+
 function formatDateKey(dateKey) {
   const [year, month, day] = dateKey.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString(undefined, {
@@ -237,7 +251,7 @@ function seedForShare() {
     return daily.shareSeed;
   }
 
-  cachedChallengeSeed ??= generateShareSeed();
+  cachedChallengeSeed ??= dailyChallengeSeed(daily.dateKey, 1);
   return cachedChallengeSeed;
 }
 
@@ -263,7 +277,18 @@ function completionSharePayload() {
   return isSeededGame ? challengeSharePayload(daily.shareSeed) : dailySharePayload();
 }
 
-function startSeededGame(seed = isSeededGame ? generateShareSeed() : seedForShare()) {
+function nextChallengeSeed() {
+  const today = new Date();
+
+  if (!isSeededGame) {
+    return seedForShare();
+  }
+
+  const currentIndex = dailyChallengeSeedIndex(daily.shareSeed, today);
+  return dailyChallengeSeed(today, (currentIndex ?? 0) + 1);
+}
+
+function startSeededGame(seed = nextChallengeSeed()) {
   cachedChallengeSeed = null;
   window.location.assign(seedUrl(seed));
 }
@@ -415,6 +440,12 @@ function submitGuess() {
 
   if (!honorsLockedClues(state.guess, puzzle.rows)) {
     showInvalidGuess("Doesn't match clues", violatedLockedClueTiles(state.guess, puzzle.rows));
+    return;
+  }
+
+  const excludedLetterTiles = violatedExcludedLetterTiles(state.guess, puzzle.rows);
+  if (excludedLetterTiles.length > 0) {
+    showInvalidGuess(excludedLetterMessage(excludedLetterTiles), excludedLetterTiles);
     return;
   }
 

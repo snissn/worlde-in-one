@@ -12,6 +12,8 @@ import {
   createDailyPuzzles,
   createPuzzle,
   createSeededPuzzles,
+  dailyChallengeSeed,
+  dailyChallengeSeedIndex,
   dateKeyForPuzzle,
   difficultyBandForScore,
   difficultyForPuzzle,
@@ -25,6 +27,7 @@ import {
   scoreGuess,
   scrabbleScoreForWord,
   signature,
+  violatedExcludedLetterTiles,
   violatedLockedClueTiles
 } from "../src/puzzle.js";
 
@@ -137,6 +140,23 @@ test("locked clue helper requires green spots and yellow letters", () => {
   ]);
 });
 
+test("excluded clue helper points at black letters that rule out a guess", () => {
+  const fullyExcludedRows = [{ word: "crane", pattern: scoreGuess("crane", "pouty") }];
+  assert.deepEqual(violatedExcludedLetterTiles("spilt", fullyExcludedRows), []);
+  assert.deepEqual(violatedExcludedLetterTiles("cigar", fullyExcludedRows), [
+    { rowIndex: 0, tileIndex: 0 },
+    { rowIndex: 0, tileIndex: 1 },
+    { rowIndex: 0, tileIndex: 2 }
+  ]);
+
+  const duplicateRows = [{ word: "allee", pattern: scoreGuess("allee", "apple") }];
+  assert.equal(signature(duplicateRows[0].pattern), "cpaac");
+  assert.deepEqual(violatedExcludedLetterTiles("apple", duplicateRows), []);
+  assert.deepEqual(violatedExcludedLetterTiles("eagle", duplicateRows), [
+    { rowIndex: 0, tileIndex: 3 }
+  ]);
+});
+
 test("trivial swap puzzles are rejected", () => {
   const trivial = {
     answer: "adobe",
@@ -210,6 +230,12 @@ test("share seeds generate deterministic replayable puzzle sets", () => {
   assert.equal(normalizeShareSeed("a b c"), "abc");
   assert.equal(normalizeShareSeed("0o1ilx"), "x");
   assert.match(generateShareSeed(() => 0), shareSeedPattern);
+  assert.match(dailyChallengeSeed("2026-06-12", 1), shareSeedPattern);
+  assert.equal(dailyChallengeSeed("2026-06-12", 1), dailyChallengeSeed("2026-06-12", 1));
+  assert.notEqual(dailyChallengeSeed("2026-06-12", 1), dailyChallengeSeed("2026-06-12", 2));
+  assert.notEqual(dailyChallengeSeed("2026-06-12", 1), dailyChallengeSeed("2026-06-13", 1));
+  assert.equal(dailyChallengeSeedIndex(dailyChallengeSeed("2026-06-12", 2), "2026-06-12"), 2);
+  assert.equal(dailyChallengeSeedIndex(dailyChallengeSeed("2026-06-12", 2), "2026-06-13"), null);
   assert.throws(() => createSeededPuzzles("abc", 5), /at least four/);
 
   const first = createSeededPuzzles("ABC-234", 5);
