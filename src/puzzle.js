@@ -15,13 +15,24 @@ export const TileState = Object.freeze({
 
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
-const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 12;
+const DEFAULT_DAILY_SPREAD_POOL_SIZE = 12;
+const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
+const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
+const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
 const SCRABBLE_POINTS = Object.freeze({
   a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
   j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
   s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10
 });
+
+export const DIFFICULTY_BANDS = Object.freeze([
+  Object.freeze({ id: "easy", label: "Easy", minScore: -Infinity, maxScore: 12200, targetScore: 11200 }),
+  Object.freeze({ id: "medium", label: "Medium", minScore: 12200, maxScore: 14200, targetScore: 13200 }),
+  Object.freeze({ id: "tricky", label: "Tricky", minScore: 14200, maxScore: 16500, targetScore: 15350 }),
+  Object.freeze({ id: "hard", label: "Hard", minScore: 16500, maxScore: 20500, targetScore: 18500 }),
+  Object.freeze({ id: "expert", label: "Expert", minScore: 20500, maxScore: Infinity, targetScore: 23000 })
+]);
 
 for (const starter of STARTER_WORDS) {
   if (!VALID_GUESS_SET.has(starter)) {
@@ -377,10 +388,6 @@ export function dateKeyForPuzzle(date = new Date()) {
 }
 
 function difficultyLabelForRank(index, count) {
-  if (count === 5) {
-    return ["Easy", "Medium", "Tricky", "Hard", "Expert"][index];
-  }
-
   return `#${index + 1}`;
 }
 
@@ -501,31 +508,46 @@ export function remainingAnswersForRows(rows, answers = VALID_GUESSES) {
   );
 }
 
+export function difficultyBandForScore(score) {
+  return DIFFICULTY_BANDS.find((band) => score >= band.minScore && score < band.maxScore) ?? DIFFICULTY_BANDS[DIFFICULTY_BANDS.length - 1];
+}
+
+function difficultyScoreBreakdown(features) {
+  const positiveTiles = features.greenTiles + features.yellowTiles;
+  const grayOnlyPressure = Math.max(0, features.grayTiles - positiveTiles);
+
+  return Object.freeze({
+    unknownLetters: features.unknownLetters * 900,
+    unknownPositions: features.unknownPositions * 650,
+    lateAmbiguity: Math.log2(features.beforeLastCount + 1) * 420,
+    looseNearMisses: Math.log2(features.twoViolationMisses + 1) * 780,
+    closeNearMisses: Math.log2(features.oneViolationMisses + 1) * 520,
+    candidatePressure: Math.sqrt(features.oneViolationMisses) * 95,
+    clueRows: features.rows * 120,
+    exclusionLoad: grayOnlyPressure * 70,
+    greenRelief: features.greenTiles * -18,
+    yellowRelief: features.yellowTiles * -12,
+    anchorRelief: features.maxRowCorrect * -80,
+    coloredRowRelief: features.maxRowColored * -30
+  });
+}
+
 export function difficultyForPuzzle(puzzle, options = {}) {
   const answers = options.candidates ?? VALID_GUESSES;
   const features = puzzleClueFeatures(puzzle, true, answers);
   const unknownPositions = 5 - features.correctPositions;
   const unknownLetters = 5 - features.requiredLetters;
-  const scrabbleScore = scrabbleScoreForWord(puzzle.answer);
-  const score = Math.round(
-    (unknownLetters * 420) +
-    (unknownPositions * 260) +
-    (Math.log2(features.beforeLastCount + 1) * 180) +
-    (Math.log2(features.twoViolationMisses + 1) * 280) +
-    (features.oneViolationMisses * 55) +
-    (features.rows * 90) +
-    (features.duplicateLetters * 220) +
-    (scrabbleScore * 400) -
-    (features.greenTiles * 8) -
-    (features.yellowTiles * 5)
-  );
+  const scoreBreakdown = difficultyScoreBreakdown({ ...features, unknownLetters, unknownPositions });
+  const score = Math.round(Object.values(scoreBreakdown).reduce((total, value) => total + value, 0));
+  const band = difficultyBandForScore(score);
 
   return Object.freeze({
     score,
+    band,
+    scoreBreakdown,
     ...features,
     unknownLetters,
-    unknownPositions,
-    scrabbleScore
+    unknownPositions
   });
 }
 
@@ -632,13 +654,74 @@ function selectDifficultySpread(puzzles, count) {
   ));
 }
 
+function selectDifficultyBandSet(puzzles, seedKey = "") {
+  const selected = [];
+  const usedAnswers = new Set();
+
+  for (const band of DIFFICULTY_BANDS) {
+    const candidates = [];
+
+    for (const puzzle of puzzles) {
+      if (usedAnswers.has(puzzle.answer) || puzzle.difficulty.band.id !== band.id) {
+        continue;
+      }
+
+      candidates.push({
+        puzzle,
+        targetKey: [
+          Math.abs(puzzle.difficulty.score - band.targetScore),
+          puzzle.difficulty.score,
+          puzzle.answer
+        ]
+      });
+    }
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    candidates.sort((left, right) => compareKeys(left.targetKey, right.targetKey));
+
+    // Keep each pick central to its band, then date-seed the finalist for daily variety.
+    const finalist = candidates
+      .slice(0, DAILY_BAND_REPRESENTATIVE_WINDOW)
+      .sort((left, right) => compareKeys(
+        [
+          hashString(`${seedKey}:${band.id}:${left.puzzle.answer}`),
+          ...left.targetKey
+        ],
+        [
+          hashString(`${seedKey}:${band.id}:${right.puzzle.answer}`),
+          ...right.targetKey
+        ]
+      ))[0];
+
+    const best = finalist.puzzle;
+    selected.push(best);
+    usedAnswers.add(best.answer);
+  }
+
+  return selected;
+}
+
 export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   const dateKey = dateKeyForPuzzle(date);
   const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
   const answers = options.answers ?? answerBankForMode(options.answerBank);
   const candidates = options.candidates ?? VALID_GUESSES;
-  const poolSize = options.poolSize ?? Math.max(DEFAULT_DAILY_CANDIDATE_POOL_SIZE, count * 2);
+  const usesDifficultyBands = count === DIFFICULTY_BANDS.length;
+  const poolSize = options.poolSize ?? (
+    usesDifficultyBands
+      ? DEFAULT_DAILY_CANDIDATE_POOL_SIZE
+      : Math.max(DEFAULT_DAILY_SPREAD_POOL_SIZE, count * 2)
+  );
+  const minPoolSize = options.minPoolSize ?? (
+    usesDifficultyBands
+      ? Math.min(poolSize, DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE)
+      : count
+  );
   const pool = [];
+  let selectedPuzzles = null;
 
   for (const target of shuffled(answers, rng)) {
     const puzzle = buildPuzzleForTarget(target, { ...options, answers, candidates });
@@ -651,7 +734,14 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
       difficulty: difficultyForPuzzle(puzzle, { candidates })
     });
 
-    if (pool.length === poolSize) {
+    if (usesDifficultyBands && pool.length >= minPoolSize) {
+      selectedPuzzles = selectDifficultyBandSet(pool, dateKey);
+      if (selectedPuzzles) {
+        break;
+      }
+    }
+
+    if (pool.length >= poolSize) {
       break;
     }
   }
@@ -660,14 +750,25 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
     throw new Error(`Could only generate ${pool.length} daily puzzles for ${dateKey}`);
   }
 
-  const puzzles = selectDifficultySpread(pool, count);
+  const puzzles = usesDifficultyBands
+    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, dateKey))
+    : selectDifficultySpread(pool, count);
+
+  if (!puzzles) {
+    const foundBands = new Set(pool.map((puzzle) => puzzle.difficulty.band.id));
+    const missing = DIFFICULTY_BANDS
+      .filter((band) => !foundBands.has(band.id))
+      .map((band) => band.label)
+      .join(", ");
+    throw new Error(`Could not generate all daily difficulty bands for ${dateKey}; missing ${missing}`);
+  }
 
   return Object.freeze({
     dateKey,
     puzzles: Object.freeze(puzzles.map((puzzle, index) => Object.freeze({
       ...puzzle,
       dailyNumber: index + 1,
-      difficultyLabel: difficultyLabelForRank(index, count)
+      difficultyLabel: usesDifficultyBands ? puzzle.difficulty.band.label : difficultyLabelForRank(index, count)
     })))
   });
 }
