@@ -99,6 +99,10 @@ test("difficulty bands are fixed score ranges", () => {
     assert.equal(difficultyBandForScore(band.targetScore).id, band.id);
   }
 
+  const hard = DIFFICULTY_BANDS.find((band) => band.id === "hard");
+  assert.equal(hard.representativeWindow, 1, "Hard should pick the closest upper-band representative");
+  assert.ok(hard.targetScore > (hard.minScore + hard.maxScore) / 2);
+
   assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[1].minScore).id, DIFFICULTY_BANDS[1].id);
   assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[2].minScore - 1).id, DIFFICULTY_BANDS[1].id);
 });

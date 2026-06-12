@@ -32,7 +32,7 @@ export const DIFFICULTY_BANDS = Object.freeze([
   Object.freeze({ id: "easy", label: "Easy", minScore: -Infinity, maxScore: 12200, targetScore: 11200 }),
   Object.freeze({ id: "medium", label: "Medium", minScore: 12200, maxScore: 14200, targetScore: 13200 }),
   Object.freeze({ id: "tricky", label: "Tricky", minScore: 14200, maxScore: 16500, targetScore: 15350 }),
-  Object.freeze({ id: "hard", label: "Hard", minScore: 16500, maxScore: 20500, targetScore: 18500 }),
+  Object.freeze({ id: "hard", label: "Hard", minScore: 16500, maxScore: 20500, targetScore: 19200, representativeWindow: 1 }),
   Object.freeze({ id: "expert", label: "Expert", minScore: 20500, maxScore: Infinity, targetScore: 23000 })
 ]);
 
@@ -703,7 +703,7 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
 
     // Keep each pick central to its band, then date-seed the finalist for daily variety.
     const finalist = candidates
-      .slice(0, DAILY_BAND_REPRESENTATIVE_WINDOW)
+      .slice(0, band.representativeWindow ?? DAILY_BAND_REPRESENTATIVE_WINDOW)
       .sort((left, right) => compareKeys(
         [
           hashString(`${seedKey}:${band.id}:${left.puzzle.answer}`),
