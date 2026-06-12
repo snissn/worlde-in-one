@@ -49,6 +49,17 @@
           <div id="puzzle-tabs" class="puzzle-tabs"></div>
         </div>
 
+        <div id="play-more-panel" class="play-more-panel" hidden>
+          <div class="play-more-copy">
+            <strong id="play-more-title">Daily complete</strong>
+            <span id="play-more-detail">Start a seeded game you can share.</span>
+          </div>
+          <div class="play-more-actions">
+            <button id="copy-seed-link" class="secondary-action" type="button" hidden>Copy link</button>
+            <button id="new-seed-game" class="primary-action" type="button">Play more</button>
+          </div>
+        </div>
+
         <div class="board-wrap">
           <div id="toast-region" class="toast-region" role="status" aria-live="polite" aria-atomic="false"></div>
           <div id="grid" class="grid"></div>
@@ -107,6 +118,9 @@
           <p>
             Each date creates the same five puzzles for everyone. The clues are
             chosen so exactly one answer remains.
+          </p>
+          <p>
+            Seed links create another five-puzzle set that anyone can replay.
           </p>
           <div class="legend" aria-label="Tile color legend">
             <span><i class="legend-tile correct"></i> right spot</span>

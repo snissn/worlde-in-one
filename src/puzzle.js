@@ -20,6 +20,8 @@ const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
 const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
 const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
+const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+const SHARE_SEED_LENGTH = 6;
 const SCRABBLE_POINTS = Object.freeze({
   a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1,
   j: 8, k: 5, l: 1, m: 3, n: 1, o: 1, p: 3, q: 10, r: 1,
@@ -372,6 +374,23 @@ export function seededRandomFromString(input) {
   };
 }
 
+export function normalizeShareSeed(input) {
+  return String(input ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 12);
+}
+
+export function generateShareSeed(rng = Math.random) {
+  let seed = "";
+
+  for (let i = 0; i < SHARE_SEED_LENGTH; i += 1) {
+    seed += SHARE_SEED_ALPHABET[Math.floor(rng() * SHARE_SEED_ALPHABET.length)];
+  }
+
+  return seed;
+}
+
 export function dateKeyForPuzzle(date = new Date()) {
   if (typeof date === "string") {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -704,9 +723,8 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
   return selected;
 }
 
-export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
-  const dateKey = dateKeyForPuzzle(date);
-  const rng = seededRandomFromString(`wordle-in-one:${dateKey}`);
+function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
+  const rng = seededRandomFromString(rngSeed);
   const answers = options.answers ?? answerBankForMode(options.answerBank);
   const candidates = options.candidates ?? VALID_GUESSES;
   const usesDifficultyBands = count === DIFFICULTY_BANDS.length;
@@ -735,7 +753,7 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
     });
 
     if (usesDifficultyBands && pool.length >= minPoolSize) {
-      selectedPuzzles = selectDifficultyBandSet(pool, dateKey);
+      selectedPuzzles = selectDifficultyBandSet(pool, setKey);
       if (selectedPuzzles) {
         break;
       }
@@ -747,11 +765,11 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
   }
 
   if (pool.length < count) {
-    throw new Error(`Could only generate ${pool.length} daily puzzles for ${dateKey}`);
+    throw new Error(`Could only generate ${pool.length} puzzles for ${setKey}`);
   }
 
   const puzzles = usesDifficultyBands
-    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, dateKey))
+    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey))
     : selectDifficultySpread(pool, count);
 
   if (!puzzles) {
@@ -760,17 +778,45 @@ export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
       .filter((band) => !foundBands.has(band.id))
       .map((band) => band.label)
       .join(", ");
-    throw new Error(`Could not generate all daily difficulty bands for ${dateKey}; missing ${missing}`);
+    throw new Error(`Could not generate all difficulty bands for ${setKey}; missing ${missing}`);
   }
 
   return Object.freeze({
-    dateKey,
+    dateKey: setKey,
+    ...metadata,
     puzzles: Object.freeze(puzzles.map((puzzle, index) => Object.freeze({
       ...puzzle,
       dailyNumber: index + 1,
       difficultyLabel: usesDifficultyBands ? puzzle.difficulty.band.label : difficultyLabelForRank(index, count)
     })))
   });
+}
+
+export function createDailyPuzzles(date = new Date(), count = 5, options = {}) {
+  const dateKey = dateKeyForPuzzle(date);
+  return createPuzzleSet(
+    dateKey,
+    `wordle-in-one:${dateKey}`,
+    count,
+    options,
+    { mode: "daily" }
+  );
+}
+
+export function createSeededPuzzles(seedInput, count = 5, options = {}) {
+  const shareSeed = normalizeShareSeed(seedInput);
+
+  if (shareSeed.length < 4) {
+    throw new Error("Share seeds must include at least four letters or numbers");
+  }
+
+  return createPuzzleSet(
+    `seed-${shareSeed}`,
+    `wordle-in-one:share:${shareSeed}`,
+    count,
+    options,
+    { mode: "seed", shareSeed }
+  );
 }
 
 export { CLASSIC_ANSWERS, VALID_GUESSES };

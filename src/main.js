@@ -3,9 +3,12 @@ import {
   VALID_GUESSES,
   TileState,
   createDailyPuzzles,
+  createSeededPuzzles,
+  generateShareSeed,
   honorsLockedClues,
   isSolved,
   isValidGuess,
+  normalizeShareSeed,
   normalizeWord,
   remainingAnswersForRows
 } from "./puzzle.js";
@@ -29,9 +32,18 @@ const KEY_STATE_PRIORITY = Object.freeze({
 
 const MAX_TOASTS = 5;
 const TOAST_DURATION_MS = 1900;
-const daily = createDailyPuzzles(new Date(), 5);
+
+function seedFromUrl() {
+  return normalizeShareSeed(new URL(window.location.href).searchParams.get("seed"));
+}
+
+const initialShareSeed = seedFromUrl();
+const daily = initialShareSeed.length >= 4
+  ? createSeededPuzzles(initialShareSeed, 5)
+  : createDailyPuzzles(new Date(), 5);
 const savedDailyState = loadSavedDailyState(daily);
 const puzzleStates = savedDailyState.states;
+const isSeededGame = daily.mode === "seed";
 
 let activePuzzleIndex = savedDailyState.activePuzzleIndex;
 let puzzle = daily.puzzles[activePuzzleIndex];
@@ -51,6 +63,11 @@ const answerModal = document.querySelector("#answer-modal");
 const helpModal = document.querySelector("#help-modal");
 const answerCloseButton = document.querySelector("#answer-close");
 const helpCloseButton = document.querySelector("#help-close");
+const playMorePanel = document.querySelector("#play-more-panel");
+const playMoreTitle = document.querySelector("#play-more-title");
+const playMoreDetail = document.querySelector("#play-more-detail");
+const copySeedLinkButton = document.querySelector("#copy-seed-link");
+const newSeedGameButton = document.querySelector("#new-seed-game");
 
 const finalTiles = [];
 const keyboardButtons = new Map();
@@ -116,6 +133,43 @@ function formatDateKey(dateKey) {
     month: "short",
     day: "numeric"
   });
+}
+
+function displaySeed(seed) {
+  return seed.toUpperCase();
+}
+
+function gameLabel() {
+  return isSeededGame
+    ? `Seed ${displaySeed(daily.shareSeed)}`
+    : formatDateKey(daily.dateKey);
+}
+
+function seedUrl(seed) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("seed", seed);
+  return url.toString();
+}
+
+function startSeededGame(seed = generateShareSeed()) {
+  window.location.assign(seedUrl(seed));
+}
+
+function isGameComplete() {
+  return puzzleStates.every((state) => state.submitted && isSolved(state.pattern));
+}
+
+async function copySeedLink() {
+  if (!isSeededGame) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(seedUrl(daily.shareSeed));
+    showToast("Seed link copied", "success");
+  } catch {
+    showToast("Copy failed", "error");
+  }
 }
 
 function makeTile(letter = "", state = null) {
@@ -354,9 +408,34 @@ function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
   guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
-  dailyDate.textContent = formatDateKey(daily.dateKey);
-  dailyDate.dateTime = daily.dateKey;
+  dailyDate.textContent = gameLabel();
+  if (isSeededGame) {
+    dailyDate.removeAttribute("datetime");
+  } else {
+    dailyDate.dateTime = daily.dateKey;
+  }
   dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
+}
+
+function updatePlayMorePanel() {
+  const complete = isGameComplete();
+  playMorePanel.hidden = !complete;
+
+  if (!complete) {
+    return;
+  }
+
+  if (isSeededGame) {
+    playMoreTitle.textContent = `Seed ${displaySeed(daily.shareSeed)} complete`;
+    playMoreDetail.textContent = "Share this set or roll another seed.";
+    copySeedLinkButton.hidden = false;
+    newSeedGameButton.textContent = "New seed";
+  } else {
+    playMoreTitle.textContent = "Daily complete";
+    playMoreDetail.textContent = "Start a seeded game you can share.";
+    copySeedLinkButton.hidden = true;
+    newSeedGameButton.textContent = "Play more";
+  }
 }
 
 function updatePuzzleTabs() {
@@ -375,6 +454,8 @@ function updatePuzzleTabs() {
       `Puzzle ${index + 1}, ${tabPuzzle.difficultyLabel}${tabState.submitted ? ", completed" : ""}`
     );
   }
+
+  updatePlayMorePanel();
 }
 
 function renderActivePuzzle() {
@@ -552,6 +633,9 @@ for (const { button, closeButton, modal } of modalControls) {
   modal?.addEventListener("close", updateModalButtonStates);
   modal?.addEventListener("cancel", updateModalButtonStates);
 }
+
+copySeedLinkButton.addEventListener("click", copySeedLink);
+newSeedGameButton.addEventListener("click", () => startSeededGame());
 
 revealButton.addEventListener("click", () => {
   const state = activeState();

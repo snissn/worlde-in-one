@@ -10,13 +10,16 @@ import {
   buildPuzzleForTarget,
   createDailyPuzzles,
   createPuzzle,
+  createSeededPuzzles,
   dateKeyForPuzzle,
   difficultyBandForScore,
   difficultyForPuzzle,
+  generateShareSeed,
   honorsLockedClues,
   isSolved,
   isTrivialPuzzle,
   lockedCluesForRows,
+  normalizeShareSeed,
   remainingAnswersForRows,
   scoreGuess,
   scrabbleScoreForWord,
@@ -183,6 +186,30 @@ test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
       expectedLabels,
       `${dateKey} should include one puzzle from each band`
     );
+  }
+});
+
+test("share seeds generate deterministic replayable puzzle sets", () => {
+  assert.equal(normalizeShareSeed(" AbC-123! "), "abc123");
+  assert.equal(normalizeShareSeed("a b c"), "abc");
+  assert.match(generateShareSeed(() => 0), /^[2-9a-z]{6}$/);
+  assert.throws(() => createSeededPuzzles("abc", 5), /at least four/);
+
+  const first = createSeededPuzzles("ABC-123", 5);
+  const second = createSeededPuzzles("abc123", 5);
+  const other = createSeededPuzzles("abc124", 5);
+  const expectedLabels = DIFFICULTY_BANDS.map((band) => band.label);
+
+  assert.equal(first.mode, "seed");
+  assert.equal(first.shareSeed, "abc123");
+  assert.equal(first.dateKey, "seed-abc123");
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
+  assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), other.puzzles.map((puzzle) => puzzle.answer));
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
+
+  for (const puzzle of first.puzzles) {
+    assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
+    assert.equal(isTrivialPuzzle(puzzle), false);
   }
 });
 

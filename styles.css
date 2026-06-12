@@ -321,6 +321,103 @@ h1 {
     var(--absent);
 }
 
+.play-more-panel {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid rgb(112 229 125 / 24%);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgb(28 79 48 / 36%), rgb(10 25 20 / 72%)),
+    rgb(7 17 30 / 74%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.play-more-panel[hidden] {
+  display: none;
+}
+
+.play-more-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.play-more-copy strong,
+.play-more-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-more-copy strong {
+  color: #f1fff3;
+  font-size: 0.92rem;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.play-more-copy span {
+  color: rgb(213 226 239 / 74%);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.play-more-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primary-action,
+.secondary-action {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 13px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.primary-action {
+  border: 1px solid rgb(112 229 125 / 58%);
+  color: #06110a;
+  background: linear-gradient(180deg, #a6ffad, #66d96f);
+}
+
+.secondary-action {
+  border: 1px solid rgb(255 255 255 / 16%);
+  color: rgb(239 244 255 / 90%);
+  background: rgb(12 23 36 / 74%);
+}
+
+.secondary-action[hidden] {
+  display: none;
+}
+
+.primary-action:hover,
+.primary-action:focus-visible,
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  border-color: rgb(255 255 255 / 48%);
+  outline: none;
+}
+
+.primary-action:active,
+.secondary-action:active {
+  transform: translateY(1px);
+}
+
 .board-wrap {
   width: min(100%, 380px);
   position: relative;
@@ -968,6 +1065,33 @@ h1 {
   .puzzle-tab small {
     margin-top: clamp(3px, 0.48dvh, 6px);
     font-size: clamp(0.52rem, 1.05dvh, 0.66rem);
+  }
+
+  .play-more-panel {
+    min-height: clamp(48px, 6.1dvh, 58px);
+    gap: clamp(8px, 1.1dvh, 12px);
+    padding: clamp(8px, 1dvh, 10px) clamp(9px, 2.2vw, 12px);
+    border-radius: 12px;
+  }
+
+  .play-more-copy strong {
+    font-size: clamp(0.78rem, 1.45dvh, 0.9rem);
+  }
+
+  .play-more-copy span {
+    font-size: clamp(0.62rem, 1.12dvh, 0.74rem);
+  }
+
+  .play-more-actions {
+    gap: 6px;
+  }
+
+  .primary-action,
+  .secondary-action {
+    height: clamp(34px, 4.4dvh, 38px);
+    padding: 0 clamp(10px, 2.4vw, 13px);
+    border-radius: 9px;
+    font-size: clamp(0.68rem, 1.18dvh, 0.78rem);
   }
 
   .board-wrap {
