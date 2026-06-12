@@ -9,6 +9,11 @@ import {
   normalizeWord,
   remainingAnswersForRows
 } from "./puzzle.js";
+import {
+  loadSavedDailyState,
+  saveDailyState as persistDailyState,
+  solvedPattern
+} from "./storage.js";
 
 const KEYBOARD_ROWS = Object.freeze([
   Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
@@ -22,7 +27,6 @@ const KEY_STATE_PRIORITY = Object.freeze({
   [TileState.CORRECT]: 3
 });
 
-const STORAGE_PREFIX = "wordle-in-one-state";
 const MAX_TOASTS = 5;
 const TOAST_DURATION_MS = 1900;
 const daily = createDailyPuzzles(new Date(), 5);
@@ -58,82 +62,8 @@ function syncViewportHeight() {
   }
 }
 
-function solvedPattern() {
-  return Array(5).fill(TileState.CORRECT);
-}
-
-function createEmptyPuzzleState() {
-  return {
-    guess: "",
-    submitted: false,
-    pattern: null
-  };
-}
-
-function storageKey(dateKey) {
-  return `${STORAGE_PREFIX}:${dateKey}`;
-}
-
-function loadSavedDailyState(dailySet) {
-  const fallback = {
-    activePuzzleIndex: 0,
-    states: dailySet.puzzles.map(() => createEmptyPuzzleState())
-  };
-
-  try {
-    const raw = window.localStorage?.getItem(storageKey(dailySet.dateKey));
-    if (!raw) {
-      return fallback;
-    }
-
-    const saved = JSON.parse(raw);
-    const answers = dailySet.puzzles.map((dailyPuzzle) => dailyPuzzle.answer);
-    if (
-      saved?.version !== 1 ||
-      saved.dateKey !== dailySet.dateKey ||
-      JSON.stringify(saved.answers) !== JSON.stringify(answers) ||
-      !Array.isArray(saved.states)
-    ) {
-      return fallback;
-    }
-
-    const states = dailySet.puzzles.map((dailyPuzzle, index) => {
-      const savedState = saved.states[index] ?? {};
-      const guess = normalizeWord(savedState.guess);
-      const submitted = savedState.submitted === true && guess === dailyPuzzle.answer;
-
-      return {
-        ...createEmptyPuzzleState(),
-        guess,
-        submitted,
-        pattern: submitted ? solvedPattern() : null
-      };
-    });
-    const activePuzzleIndex = Number.isInteger(saved.activePuzzleIndex) && saved.activePuzzleIndex >= 0 && saved.activePuzzleIndex < states.length
-      ? saved.activePuzzleIndex
-      : 0;
-
-    return { activePuzzleIndex, states };
-  } catch {
-    return fallback;
-  }
-}
-
 function saveDailyState() {
-  try {
-    window.localStorage?.setItem(storageKey(daily.dateKey), JSON.stringify({
-      version: 1,
-      dateKey: daily.dateKey,
-      answers: daily.puzzles.map((dailyPuzzle) => dailyPuzzle.answer),
-      activePuzzleIndex,
-      states: puzzleStates.map((state) => ({
-        guess: state.guess,
-        submitted: state.submitted
-      }))
-    }));
-  } catch {
-    // localStorage can be unavailable in private browsing or locked-down embeds.
-  }
+  persistDailyState(daily, activePuzzleIndex, puzzleStates);
 }
 
 function activeState() {
@@ -333,8 +263,8 @@ function renderKeyboard() {
         button.classList.add("wide");
         button.setAttribute("aria-label", "Submit guess");
       } else if (key === "backspace") {
-        button.textContent = "⌫";
-        button.classList.add("wide");
+        button.append(createBackspaceIcon());
+        button.classList.add("wide", "icon-key");
         button.setAttribute("aria-label", "Delete last letter");
       } else {
         button.textContent = key.toUpperCase();
@@ -358,6 +288,26 @@ function renderKeyboard() {
 
     keyboard.append(rowElement);
   }
+}
+
+function createBackspaceIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M21 4H8l-6 8 6 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z");
+  svg.append(path);
+
+  const firstLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  firstLine.setAttribute("d", "m16 9-6 6");
+  svg.append(firstLine);
+
+  const secondLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  secondLine.setAttribute("d", "m10 9 6 6");
+  svg.append(secondLine);
+
+  return svg;
 }
 
 function keyboardStatesForRows(rows) {
@@ -427,15 +377,19 @@ function updatePuzzleTabs() {
   }
 }
 
-function switchPuzzle(index) {
-  activePuzzleIndex = index;
-  puzzle = daily.puzzles[activePuzzleIndex];
+function renderActivePuzzle() {
   clearToasts();
   renderBoard();
   updatePuzzleChrome();
   updatePuzzleTabs();
   updateKeyboard(keyboardRowsForActivePuzzle());
   setKeyboardDisabled(activeState().submitted);
+}
+
+function switchPuzzle(index) {
+  activePuzzleIndex = index;
+  puzzle = daily.puzzles[activePuzzleIndex];
+  renderActivePuzzle();
   saveDailyState();
 }
 
@@ -548,7 +502,8 @@ window.addEventListener("resize", syncViewportHeight);
 
 renderKeyboard();
 renderPuzzleTabs();
-switchPuzzle(0);
+renderActivePuzzle();
+saveDailyState();
 
 document.addEventListener("keydown", (event) => {
   if (isAnyModalOpen()) {

@@ -24,6 +24,7 @@
   --success: #95f49d;
   --shadow: 0 30px 100px rgb(0 0 0 / 48%);
   --app-height: 100svh;
+  --keyboard-icon-size: 28px;
 }
 
 @supports (height: 100dvh) {
@@ -478,6 +479,9 @@ h1 {
   flex: 1 1 0;
   min-width: 0;
   height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 7px;
@@ -498,6 +502,16 @@ h1 {
   flex-grow: 1.55;
   font-size: 0.74rem;
   letter-spacing: 0;
+}
+
+.key.icon-key {
+  font-size: 1rem;
+}
+
+.key.icon-key svg {
+  width: var(--keyboard-icon-size);
+  height: var(--keyboard-icon-size);
+  stroke-width: 2.35;
 }
 
 .key:hover:not(:disabled),
@@ -877,6 +891,7 @@ h1 {
     --keyboard-key-height: clamp(42px, 5.8dvh, 56px);
     --keyboard-key-font: clamp(1rem, 2dvh, 1.18rem);
     --keyboard-wide-font: clamp(0.62rem, 1.16dvh, 0.72rem);
+    --keyboard-icon-size: clamp(25px, 3.35dvh, 32px);
     --board-gap: clamp(4px, 0.75dvh, 8px);
     --tab-height: clamp(42px, 5.8dvh, 56px);
     width: 100%;
@@ -1034,6 +1049,7 @@ h1 {
     --keyboard-key-height: clamp(40px, 5.6dvh, 54px);
     --keyboard-key-font: clamp(0.9rem, 1.88dvh, 1.1rem);
     --keyboard-wide-font: clamp(0.56rem, 1.08dvh, 0.68rem);
+    --keyboard-icon-size: clamp(23px, 3.45dvh, 29px);
     --board-gap: clamp(4px, 0.65dvh, 6px);
     --tab-height: clamp(38px, 5.45dvh, 50px);
     padding-right: max(12px, env(safe-area-inset-right));
