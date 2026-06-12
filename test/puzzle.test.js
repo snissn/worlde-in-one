@@ -23,7 +23,8 @@ import {
   remainingAnswersForRows,
   scoreGuess,
   scrabbleScoreForWord,
-  signature
+  signature,
+  violatedLockedClueTiles
 } from "../src/puzzle.js";
 
 function seededRandom(seed) {
@@ -125,6 +126,14 @@ test("locked clue helper requires green spots and yellow letters", () => {
   assert.equal(honorsLockedClues("crown", rows), true);
   assert.equal(honorsLockedClues("cross", rows), false, "must include the yellow N");
   assert.equal(honorsLockedClues("crony", rows), false, "yellow N cannot stay in the same spot");
+  assert.deepEqual(violatedLockedClueTiles("crown", rows), []);
+  assert.deepEqual(violatedLockedClueTiles("cross", rows), [{ rowIndex: 0, tileIndex: 3 }]);
+  assert.deepEqual(violatedLockedClueTiles("crony", rows), [{ rowIndex: 0, tileIndex: 3 }]);
+  assert.deepEqual(violatedLockedClueTiles("spare", rows), [
+    { rowIndex: 0, tileIndex: 0 },
+    { rowIndex: 0, tileIndex: 1 },
+    { rowIndex: 0, tileIndex: 3 }
+  ]);
 });
 
 test("trivial swap puzzles are rejected", () => {

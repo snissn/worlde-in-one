@@ -232,6 +232,64 @@ function wordHonorsClues(wordInput, clues) {
   return true;
 }
 
+function addClueLocation(locations, seen, rowIndex, tileIndex) {
+  const key = `${rowIndex}:${tileIndex}`;
+  if (seen.has(key)) {
+    return;
+  }
+
+  seen.add(key);
+  locations.push({ rowIndex, tileIndex });
+}
+
+function addCorrectPositionClues(locations, seen, rows, position, letter) {
+  for (const [rowIndex, row] of rows.entries()) {
+    if (row.pattern[position] === TileState.CORRECT && row.word[position] === letter) {
+      addClueLocation(locations, seen, rowIndex, position);
+    }
+  }
+}
+
+function addForbiddenPositionClues(locations, seen, rows, position, letter) {
+  for (const [rowIndex, row] of rows.entries()) {
+    if (row.pattern[position] === TileState.PRESENT && row.word[position] === letter) {
+      addClueLocation(locations, seen, rowIndex, position);
+    }
+  }
+}
+
+function addRequiredLetterClues(locations, seen, rows, letter, requiredCount) {
+  let fallback = [];
+
+  for (const [rowIndex, row] of rows.entries()) {
+    const rowLocations = [];
+
+    for (let tileIndex = 0; tileIndex < row.word.length; tileIndex += 1) {
+      if (
+        row.word[tileIndex] === letter &&
+        (row.pattern[tileIndex] === TileState.CORRECT || row.pattern[tileIndex] === TileState.PRESENT)
+      ) {
+        rowLocations.push({ rowIndex, tileIndex });
+      }
+    }
+
+    if (rowLocations.length >= requiredCount) {
+      for (const location of rowLocations.slice(0, requiredCount)) {
+        addClueLocation(locations, seen, location.rowIndex, location.tileIndex);
+      }
+      return;
+    }
+
+    if (rowLocations.length > fallback.length) {
+      fallback = rowLocations;
+    }
+  }
+
+  for (const location of fallback) {
+    addClueLocation(locations, seen, location.rowIndex, location.tileIndex);
+  }
+}
+
 export function lockedCluesForRows(rows) {
   const clues = buildLockedClues(rows);
   return Object.freeze({
@@ -243,6 +301,41 @@ export function lockedCluesForRows(rows) {
 
 export function honorsLockedClues(word, rows) {
   return wordHonorsClues(word, buildLockedClues(rows));
+}
+
+export function violatedLockedClueTiles(wordInput, rows) {
+  const word = normalizeWord(wordInput);
+  if (word.length !== 5) {
+    return Object.freeze([]);
+  }
+
+  const clues = buildLockedClues(rows);
+  const locations = [];
+  const seen = new Set();
+  const counts = new Map();
+
+  for (let i = 0; i < 5; i += 1) {
+    const letter = word[i];
+    const required = clues.correctPositions[i];
+
+    if (required && letter !== required) {
+      addCorrectPositionClues(locations, seen, rows, i, required);
+    }
+
+    if (clues.forbiddenPositions[i].has(letter)) {
+      addForbiddenPositionClues(locations, seen, rows, i, letter);
+    }
+
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  for (const [letter, requiredCount] of clues.requiredCounts.entries()) {
+    if ((counts.get(letter) ?? 0) < requiredCount) {
+      addRequiredLetterClues(locations, seen, rows, letter, requiredCount);
+    }
+  }
+
+  return Object.freeze(locations.map((location) => Object.freeze(location)));
 }
 
 function matchingCandidates(candidates, guess, pattern) {

@@ -10,7 +10,8 @@ import {
   isValidGuess,
   normalizeShareSeed,
   normalizeWord,
-  remainingAnswersForRows
+  remainingAnswersForRows,
+  violatedLockedClueTiles
 } from "./puzzle.js";
 import {
   loadSavedDailyState,
@@ -70,6 +71,7 @@ const copySeedLinkButton = document.querySelector("#copy-seed-link");
 const newSeedGameButton = document.querySelector("#new-seed-game");
 
 const finalTiles = [];
+const clueTiles = [];
 const keyboardButtons = new Map();
 
 function syncViewportHeight() {
@@ -121,8 +123,24 @@ function shakeFinalRow() {
   window.setTimeout(() => finalRow.classList.remove("shake"), 520);
 }
 
-function showInvalidGuess(text) {
+function shakeClueTiles(locations = []) {
+  for (const { rowIndex, tileIndex } of locations) {
+    const tile = clueTiles[rowIndex]?.[tileIndex];
+    if (!tile) {
+      continue;
+    }
+
+    tile.classList.remove("clue-shake");
+    void tile.offsetWidth;
+    tile.classList.add("clue-shake");
+    tile.addEventListener("animationend", () => tile.classList.remove("clue-shake"), { once: true });
+    window.setTimeout(() => tile.classList.remove("clue-shake"), 560);
+  }
+}
+
+function showInvalidGuess(text, clueLocations = []) {
   shakeFinalRow();
+  shakeClueTiles(clueLocations);
   showToast(text, "error");
 }
 
@@ -192,14 +210,18 @@ function makeTile(letter = "", state = null) {
 function renderBoard() {
   grid.innerHTML = "";
   finalTiles.length = 0;
+  clueTiles.length = 0;
 
-  for (const row of puzzle.rows) {
+  for (const [rowIndex, row] of puzzle.rows.entries()) {
     const rowElement = document.createElement("div");
     rowElement.className = "word-row";
     rowElement.setAttribute("aria-label", `Prefilled guess ${row.word.toUpperCase()}`);
+    clueTiles[rowIndex] = [];
 
     for (let i = 0; i < 5; i += 1) {
-      rowElement.append(makeTile(row.word[i], row.pattern[i]));
+      const tile = makeTile(row.word[i], row.pattern[i]);
+      clueTiles[rowIndex].push(tile);
+      rowElement.append(tile);
     }
 
     grid.append(rowElement);
@@ -274,7 +296,7 @@ function submitGuess() {
   }
 
   if (!honorsLockedClues(state.guess, puzzle.rows)) {
-    showInvalidGuess("Doesn't match clues");
+    showInvalidGuess("Doesn't match clues", violatedLockedClueTiles(state.guess, puzzle.rows));
     return;
   }
 
