@@ -74,6 +74,7 @@ const playMorePanel = document.querySelector("#play-more-panel");
 const playMoreTitle = document.querySelector("#play-more-title");
 const playMoreDetail = document.querySelector("#play-more-detail");
 const shareSeedLinkButton = document.querySelector("#share-seed-link");
+const shareSeedLinkLabel = shareSeedLinkButton.querySelector(".completion-share-label");
 const newSeedGameButton = document.querySelector("#new-seed-game");
 
 const finalTiles = [];
@@ -673,13 +674,17 @@ function updatePlayMorePanel() {
     playMoreTitle.textContent = "Challenge complete";
     playMoreDetail.textContent = `Share challenge ${displaySeed(daily.shareSeed)}, or start a new one.`;
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Share challenge";
+    shareSeedLinkButton.classList.remove("icon-only");
+    shareSeedLinkButton.setAttribute("aria-label", `Challenge friends with challenge ${displaySeed(daily.shareSeed)}`);
+    shareSeedLinkLabel.textContent = "Challenge friends";
     newSeedGameButton.textContent = "New challenge";
   } else {
     playMoreTitle.textContent = "Today's challenge solved";
-    playMoreDetail.textContent = "Invite friends to find all five, or start a new challenge.";
+    playMoreDetail.textContent = "Share your result, or start a new challenge.";
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.textContent = "Challenge friends";
+    shareSeedLinkButton.classList.add("icon-only");
+    shareSeedLinkButton.setAttribute("aria-label", "Share today's result");
+    shareSeedLinkLabel.textContent = "Share";
     newSeedGameButton.textContent = "New challenge";
   }
 }

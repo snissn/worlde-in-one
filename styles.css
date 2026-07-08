@@ -440,6 +440,32 @@ h1 {
   background: linear-gradient(180deg, #a6ffad, #66d96f);
 }
 
+.completion-share-action {
+  gap: 7px;
+}
+
+.completion-share-action.icon-only {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+}
+
+.completion-share-action.icon-only .completion-share-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.completion-share-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.35;
+}
+
 .secondary-action {
   border: 1px solid rgb(255 255 255 / 16%);
   color: rgb(239 244 255 / 90%);
@@ -1262,6 +1288,12 @@ h1 {
     font-size: clamp(0.68rem, 1.18dvh, 0.78rem);
   }
 
+  .completion-share-action.icon-only {
+    width: clamp(34px, 4.4dvh, 38px);
+    min-width: clamp(34px, 4.4dvh, 38px);
+    padding: 0;
+  }
+
   .board-wrap {
     --board-max: clamp(300px, 41dvh, 390px);
     width: min(100%, var(--board-max));
@@ -1403,6 +1435,10 @@ h1 {
   .primary-action,
   .secondary-action {
     min-width: 0;
+    width: 100%;
+  }
+
+  .completion-share-action.icon-only {
     width: 100%;
   }
 
