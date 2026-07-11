@@ -20,6 +20,7 @@ import {
   saveDailyState as persistDailyState,
   solvedPattern
 } from "./storage.js";
+import { canonicalAppUrl, deploymentAppUrl } from "./urls.js";
 
 const KEYBOARD_ROWS = Object.freeze([
   Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
@@ -298,15 +299,7 @@ function gameLabel() {
 }
 
 function seedUrl(seed) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("seed", seed);
-  return url.toString();
-}
-
-function dailyUrl() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete("seed");
-  return url.toString();
+  return deploymentAppUrl(window.location.href, seed);
 }
 
 function seedForShare() {
@@ -322,7 +315,7 @@ function dailySharePayload() {
   return {
     title: "Today's Wordle in One",
     text: "I finished today's challenge. Can you find all five only possible answers?",
-    url: dailyUrl()
+    url: canonicalAppUrl()
   };
 }
 
@@ -332,7 +325,7 @@ function challengeSharePayload(seed) {
   return {
     title: `Wordle in One Challenge ${challengeCode}`,
     text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
-    url: seedUrl(seed)
+    url: canonicalAppUrl(seed)
   };
 }
 
@@ -674,7 +667,6 @@ function updatePlayMorePanel() {
     playMoreTitle.textContent = "Challenge complete";
     playMoreDetail.textContent = `Share challenge ${displaySeed(daily.shareSeed)}, or start a new one.`;
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.classList.remove("icon-only");
     shareSeedLinkButton.setAttribute("aria-label", `Challenge friends with challenge ${displaySeed(daily.shareSeed)}`);
     shareSeedLinkLabel.textContent = "Challenge friends";
     newSeedGameButton.textContent = "New challenge";
@@ -682,7 +674,6 @@ function updatePlayMorePanel() {
     playMoreTitle.textContent = "Today's challenge solved";
     playMoreDetail.textContent = "Share your result, or start a new challenge.";
     shareSeedLinkButton.hidden = false;
-    shareSeedLinkButton.classList.add("icon-only");
     shareSeedLinkButton.setAttribute("aria-label", "Share today's result");
     shareSeedLinkLabel.textContent = "Share";
     newSeedGameButton.textContent = "New challenge";
