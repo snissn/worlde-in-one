@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+import { deploymentAppUrl } from "../src/urls.js";
 import { applyPreviewMeta, normalizeChallengeCode, previewMetaForUrl } from "../worker.js";
 
 test("preview metadata uses the canonical domain and shared challenge code", async () => {
@@ -30,6 +31,13 @@ test("preview metadata falls back to daily copy without a challenge code", () =>
   assert.equal(meta.title, "Wordle in One");
   assert.equal(meta.description, "Five Wordle boards. One possible answer each.");
   assert.equal(meta.url, "https://wordle-in-one.com/");
+});
+
+test("interactive challenge navigation stays on the current deployment", () => {
+  assert.equal(
+    deploymentAppUrl("http://localhost:8000/?debug=true", "abc234"),
+    "http://localhost:8000/?debug=true&seed=abc234"
+  );
 });
 
 test("daily completion share action keeps its icon and visible label", async () => {

@@ -20,7 +20,7 @@ import {
   saveDailyState as persistDailyState,
   solvedPattern
 } from "./storage.js";
-import { canonicalAppUrl } from "./urls.js";
+import { canonicalAppUrl, deploymentAppUrl } from "./urls.js";
 
 const KEYBOARD_ROWS = Object.freeze([
   Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
@@ -299,11 +299,7 @@ function gameLabel() {
 }
 
 function seedUrl(seed) {
-  return canonicalAppUrl(seed);
-}
-
-function dailyUrl() {
-  return canonicalAppUrl();
+  return deploymentAppUrl(window.location.href, seed);
 }
 
 function seedForShare() {
@@ -319,7 +315,7 @@ function dailySharePayload() {
   return {
     title: "Today's Wordle in One",
     text: "I finished today's challenge. Can you find all five only possible answers?",
-    url: dailyUrl()
+    url: canonicalAppUrl()
   };
 }
 
@@ -329,7 +325,7 @@ function challengeSharePayload(seed) {
   return {
     title: `Wordle in One Challenge ${challengeCode}`,
     text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
-    url: seedUrl(seed)
+    url: canonicalAppUrl(seed)
   };
 }
 
