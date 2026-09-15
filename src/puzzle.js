@@ -436,6 +436,9 @@ export function violatedExcludedLetterTiles(wordInput, rows) {
 
 function matchingCandidates(candidates, guess, pattern, normalizeCandidates = false) {
   const normalizedGuess = normalizedFiveLetterWord(guess);
+  if (pattern.length !== 5) {
+    return [];
+  }
   const wanted = codeForPattern(pattern);
   return candidates.filter((candidate) => feedbackCode(
     normalizedGuess,

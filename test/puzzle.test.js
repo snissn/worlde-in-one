@@ -77,6 +77,10 @@ test("remaining-answer matching preserves input normalization", () => {
     }], ["cat"]),
     /five-letter word/
   );
+  assert.deepEqual(
+    remainingAnswersForRows([{ word: "zzzzz", pattern: [TileState.ABSENT] }], ["crown"]),
+    []
+  );
 });
 
 test("generation preserves custom candidate normalization", () => {
