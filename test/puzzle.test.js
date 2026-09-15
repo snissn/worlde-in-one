@@ -70,6 +70,13 @@ test("remaining-answer matching preserves input normalization", () => {
     remainingAnswersForRows([{ word: "CRANE", pattern }], ["CROWN", "CIGAR"]),
     ["CROWN"]
   );
+  assert.throws(
+    () => remainingAnswersForRows([{
+      word: "zzzzz",
+      pattern: Array(5).fill(TileState.ABSENT)
+    }], ["cat"]),
+    /five-letter word/
+  );
 });
 
 test("generation preserves custom candidate normalization", () => {

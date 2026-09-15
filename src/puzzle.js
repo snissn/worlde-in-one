@@ -116,18 +116,20 @@ export function normalizeWord(input) {
     .slice(0, 5);
 }
 
+function normalizedFiveLetterWord(input) {
+  const word = normalizeWord(input);
+  if (word.length !== 5) {
+    throw new Error(`Expected a five-letter word: ${input}`);
+  }
+  return word;
+}
+
 function normalizedGenerationWords(words) {
   if (words === CLASSIC_ANSWERS || words === VALID_GUESSES) {
     return words;
   }
 
-  return words.map((word) => {
-    const normalized = normalizeWord(word);
-    if (normalized.length !== 5) {
-      throw new Error(`Expected a five-letter word: ${word}`);
-    }
-    return normalized;
-  });
+  return words.map(normalizedFiveLetterWord);
 }
 
 export function isValidGuess(word) {
@@ -433,11 +435,11 @@ export function violatedExcludedLetterTiles(wordInput, rows) {
 }
 
 function matchingCandidates(candidates, guess, pattern, normalizeCandidates = false) {
-  const normalizedGuess = normalizeWord(guess);
+  const normalizedGuess = normalizedFiveLetterWord(guess);
   const wanted = codeForPattern(pattern);
   return candidates.filter((candidate) => feedbackCode(
     normalizedGuess,
-    normalizeCandidates ? normalizeWord(candidate) : candidate
+    normalizeCandidates ? normalizedFiveLetterWord(candidate) : candidate
   ) === wanted);
 }
 
