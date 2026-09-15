@@ -17,10 +17,11 @@ const VALID_GUESS_SET = new Set(VALID_GUESSES);
 const FEEDBACK_PLACE_VALUES = Object.freeze([1, 3, 9, 27, 81]);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
 const DEFAULT_DAILY_SPREAD_POOL_SIZE = 12;
-const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
+const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = CLASSIC_ANSWERS.length;
 const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
 const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
+const DEFAULT_PUZZLE_CANDIDATE_CACHE = new Map();
 export const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 const SHARE_SEED_LENGTH = 6;
 const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
@@ -942,6 +943,25 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
   return selected;
 }
 
+function puzzleCandidateForTarget(target, options, answers, candidates) {
+  const cache = answers === CLASSIC_ANSWERS &&
+    candidates === VALID_GUESSES &&
+    (options.probePoolSize ?? DEFAULT_PROBE_POOL_SIZE) === DEFAULT_PROBE_POOL_SIZE
+    ? DEFAULT_PUZZLE_CANDIDATE_CACHE
+    : null;
+
+  if (cache?.has(target)) {
+    return cache.get(target);
+  }
+
+  const puzzle = buildPuzzleForTarget(target, { ...options, answers, candidates });
+  const candidate = puzzle
+    ? Object.freeze({ ...puzzle, difficulty: difficultyForPuzzle(puzzle, { candidates }) })
+    : null;
+  cache?.set(target, candidate);
+  return candidate;
+}
+
 function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   const rng = seededRandomFromString(rngSeed);
   const answers = options.answers ?? answerBankForMode(options.answerBank);
@@ -961,15 +981,12 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   let selectedPuzzles = null;
 
   for (const target of shuffled(answers, rng)) {
-    const puzzle = buildPuzzleForTarget(target, { ...options, answers, candidates });
+    const puzzle = puzzleCandidateForTarget(target, options, answers, candidates);
     if (!puzzle) {
       continue;
     }
 
-    pool.push({
-      ...puzzle,
-      difficulty: difficultyForPuzzle(puzzle, { candidates })
-    });
+    pool.push(puzzle);
 
     if (usesDifficultyBands && pool.length >= minPoolSize) {
       selectedPuzzles = selectDifficultyBandSet(pool, setKey);
