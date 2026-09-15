@@ -84,13 +84,18 @@ test("remaining-answer matching preserves input normalization", () => {
 });
 
 test("generation preserves custom candidate normalization", () => {
+  const candidates = ["steer", "verge", "sower"];
   const puzzle = buildPuzzleForTarget("steer", {
     answers: ["steer"],
-    candidates: ["steer", "verge", "SOWER"]
+    candidates: candidates.map((word) => word.toUpperCase())
   });
 
   assert.equal(puzzle.answer, "steer");
   assert.deepEqual(puzzle.remaining, ["steer"]);
+  assert.equal(
+    difficultyForPuzzle(puzzle, { candidates: candidates.map((word) => word.toUpperCase()) }).score,
+    difficultyForPuzzle(puzzle, { candidates }).score
+  );
 });
 
 test("uses classic answers but validates uniqueness against every official guess", () => {

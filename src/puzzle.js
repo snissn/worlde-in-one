@@ -771,7 +771,7 @@ function difficultyScoreBreakdown(features) {
 }
 
 export function difficultyForPuzzle(puzzle, options = {}) {
-  const answers = options.candidates ?? VALID_GUESSES;
+  const answers = normalizedGenerationWords(options.candidates ?? VALID_GUESSES);
   const features = puzzleClueFeatures(puzzle, true, answers);
   const unknownPositions = 5 - features.correctPositions;
   const unknownLetters = 5 - features.requiredLetters;
