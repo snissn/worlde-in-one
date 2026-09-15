@@ -47,14 +47,20 @@ export function decodeDailyPuzzles(payload, dateKey) {
   });
 }
 
-export async function loadPregeneratedDailyPuzzles(date = new Date(), fetchImpl = globalThis.fetch) {
+export async function loadPregeneratedDailyPuzzles(
+  date = new Date(),
+  fetchImpl = globalThis.fetch,
+  timeoutMs = 5_000
+) {
   const dateKey = dateKeyForPuzzle(date);
   if (typeof fetchImpl !== "function") {
     return null;
   }
 
   try {
-    const response = await fetchImpl(`/daily/${dateKey.slice(0, 4)}.json`);
+    const response = await fetchImpl(`/daily/${dateKey.slice(0, 4)}.json`, {
+      signal: AbortSignal.timeout(timeoutMs)
+    });
     if (!response.ok) {
       return null;
     }

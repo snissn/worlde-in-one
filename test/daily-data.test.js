@@ -57,4 +57,7 @@ test("daily loader uses its annual asset and returns null for browser fallback",
     json: async () => ({ version: 1, days: {} })
   })), null);
   assert.equal(await loadPregeneratedDailyPuzzles("2026-09-15", async () => { throw new Error("offline"); }), null);
+  assert.equal(await loadPregeneratedDailyPuzzles("2026-09-15", (_url, { signal }) => new Promise((_, reject) => {
+    signal.addEventListener("abort", () => reject(signal.reason));
+  }), 1), null);
 });
