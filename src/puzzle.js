@@ -802,7 +802,7 @@ export function createPuzzle(rng = Math.random, options = {}) {
     }
   }
 
-  throw new Error("Could not generate a one-answer Wordle puzzle");
+  throw new Error("Could not generate a one-answer word puzzle");
 }
 
 function selectDifficultySpread(puzzles, count) {

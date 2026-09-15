@@ -12,25 +12,25 @@ test("preview metadata uses the canonical domain and shared challenge code", asy
 
   assert.equal(normalizeChallengeCode(" AbC-234! "), "abc234");
   assert.equal(normalizeChallengeCode("0o1ilx"), "x");
-  assert.equal(meta.title, "Wordle in One Challenge ABC234");
-  assert.equal(meta.description, "Challenge ABC234: five Wordle boards, one possible answer each.");
-  assert.equal(meta.url, "https://wordle-in-one.com/?seed=abc234");
-  assert.equal(meta.image, "https://wordle-in-one.com/share-preview.png");
+  assert.equal(meta.title, "Word in One Challenge ABC234");
+  assert.equal(meta.description, "Challenge ABC234: five word puzzles, one possible answer each.");
+  assert.equal(meta.url, "https://word-in-one.com/?seed=abc234");
+  assert.equal(meta.image, "https://word-in-one.com/share-preview.png");
 
-  assert.match(preview, /<title>Wordle in One Challenge ABC234<\/title>/);
-  assert.match(preview, /<meta property="og:title" content="Wordle in One Challenge ABC234" \/>/);
-  assert.match(preview, /<meta property="og:description" content="Challenge ABC234: five Wordle boards, one possible answer each\." \/>/);
-  assert.match(preview, /<meta property="og:url" content="https:\/\/wordle-in-one\.com\/\?seed=abc234" \/>/);
-  assert.match(preview, /<meta name="twitter:title" content="Wordle in One Challenge ABC234" \/>/);
-  assert.match(preview, /<link rel="canonical" href="https:\/\/wordle-in-one\.com\/\?seed=abc234" \/>/);
+  assert.match(preview, /<title>Word in One Challenge ABC234<\/title>/);
+  assert.match(preview, /<meta property="og:title" content="Word in One Challenge ABC234" \/>/);
+  assert.match(preview, /<meta property="og:description" content="Challenge ABC234: five word puzzles, one possible answer each\." \/>/);
+  assert.match(preview, /<meta property="og:url" content="https:\/\/word-in-one\.com\/\?seed=abc234" \/>/);
+  assert.match(preview, /<meta name="twitter:title" content="Word in One Challenge ABC234" \/>/);
+  assert.match(preview, /<link rel="canonical" href="https:\/\/word-in-one\.com\/\?seed=abc234" \/>/);
 });
 
 test("preview metadata falls back to daily copy without a challenge code", () => {
   const meta = previewMetaForUrl("https://worlde-in-one.snissn.workers.dev/");
 
-  assert.equal(meta.title, "Wordle in One");
-  assert.equal(meta.description, "Five Wordle boards. One possible answer each.");
-  assert.equal(meta.url, "https://wordle-in-one.com/");
+  assert.equal(meta.title, "Word in One");
+  assert.equal(meta.description, "Five word puzzles. One possible answer each.");
+  assert.equal(meta.url, "https://word-in-one.com/");
 });
 
 test("interactive challenge navigation stays on the current deployment", () => {

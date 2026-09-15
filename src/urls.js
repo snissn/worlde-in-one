@@ -1,4 +1,4 @@
-export const CANONICAL_ORIGIN = "https://wordle-in-one.com";
+export const CANONICAL_ORIGIN = "https://word-in-one.com";
 
 export function canonicalAppUrl(seed = "") {
   const url = new URL("/", CANONICAL_ORIGIN);
