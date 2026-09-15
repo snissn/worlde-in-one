@@ -116,6 +116,20 @@ export function normalizeWord(input) {
     .slice(0, 5);
 }
 
+function normalizedGenerationWords(words) {
+  if (words === CLASSIC_ANSWERS || words === VALID_GUESSES) {
+    return words;
+  }
+
+  return words.map((word) => {
+    const normalized = normalizeWord(word);
+    if (normalized.length !== 5) {
+      throw new Error(`Expected a five-letter word: ${word}`);
+    }
+    return normalized;
+  });
+}
+
 export function isValidGuess(word) {
   return VALID_GUESS_SET.has(normalizeWord(word));
 }
@@ -772,8 +786,8 @@ export function difficultyForPuzzle(puzzle, options = {}) {
 
 export function buildPuzzleForTarget(targetInput, options = {}) {
   const target = normalizeWord(targetInput);
-  const answers = options.answers ?? answerBankForMode(options.answerBank);
-  const candidatesUniverse = options.candidates ?? VALID_GUESSES;
+  const answers = normalizedGenerationWords(options.answers ?? answerBankForMode(options.answerBank));
+  const candidatesUniverse = normalizedGenerationWords(options.candidates ?? VALID_GUESSES);
   const probePoolSize = options.probePoolSize ?? DEFAULT_PROBE_POOL_SIZE;
   if (!answers.includes(target) || !candidatesUniverse.includes(target)) {
     throw new Error(`Unknown answer word: ${targetInput}`);

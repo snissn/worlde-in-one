@@ -72,6 +72,16 @@ test("remaining-answer matching preserves input normalization", () => {
   );
 });
 
+test("generation preserves custom candidate normalization", () => {
+  const puzzle = buildPuzzleForTarget("steer", {
+    answers: ["steer"],
+    candidates: ["steer", "verge", "SOWER"]
+  });
+
+  assert.equal(puzzle.answer, "steer");
+  assert.deepEqual(puzzle.remaining, ["steer"]);
+});
+
 test("uses classic answers but validates uniqueness against every official guess", () => {
   assert.equal(CLASSIC_ANSWERS.length, 2315);
   assert.equal(VALID_GUESSES.length, 12972);
