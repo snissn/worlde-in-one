@@ -1,7 +1,7 @@
 import { canonicalAppUrl, canonicalAssetUrl } from "./src/urls.js";
 
-const DEFAULT_TITLE = "Wordle in One";
-const DEFAULT_DESCRIPTION = "Five Wordle boards. One possible answer each.";
+const DEFAULT_TITLE = "Word in One";
+const DEFAULT_DESCRIPTION = "Five word puzzles. One possible answer each.";
 const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 const SHARE_SEED_LENGTH = 6;
 const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
@@ -39,9 +39,9 @@ export function previewMetaForUrl(href) {
   const challengeCode = normalizeChallengeCode(url.searchParams.get("seed"));
   const hasChallenge = challengeCode.length >= 4;
   const displayCode = displayChallengeCode(challengeCode);
-  const title = hasChallenge ? `Wordle in One Challenge ${displayCode}` : DEFAULT_TITLE;
+  const title = hasChallenge ? `Word in One Challenge ${displayCode}` : DEFAULT_TITLE;
   const description = hasChallenge
-    ? `Challenge ${displayCode}: five Wordle boards, one possible answer each.`
+    ? `Challenge ${displayCode}: five word puzzles, one possible answer each.`
     : DEFAULT_DESCRIPTION;
   const image = canonicalAssetUrl("/share-preview.png");
 

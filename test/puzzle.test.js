@@ -53,7 +53,7 @@ test("scores present letters", () => {
   assert.equal(signature(scoreGuess("rebut", "cigar")), "paaaa");
 });
 
-test("scores duplicate letters with Wordle-style consumption", () => {
+test("scores duplicate letters with tile-state consumption", () => {
   assert.deepEqual(scoreGuess("allee", "apple"), [
     TileState.CORRECT,
     TileState.PRESENT,
@@ -63,7 +63,7 @@ test("scores duplicate letters with Wordle-style consumption", () => {
   ]);
 });
 
-test("uses classic Wordle answers but validates uniqueness against every official guess", () => {
+test("uses classic answers but validates uniqueness against every official guess", () => {
   assert.equal(CLASSIC_ANSWERS.length, 2315);
   assert.equal(VALID_GUESSES.length, 12972);
   assert.deepEqual(ANSWERS, CLASSIC_ANSWERS);
@@ -112,7 +112,7 @@ test("difficulty bands are fixed score ranges", () => {
   assert.equal(difficultyBandForScore(DIFFICULTY_BANDS[2].minScore - 1).id, DIFFICULTY_BANDS[1].id);
 });
 
-test("solver starts with a common Wordle opener instead of a random probe", () => {
+test("solver starts with a common opener instead of a random probe", () => {
   const puzzle = buildPuzzleForTarget("study");
 
   assert.equal(puzzle.rows[0].word, "crane");

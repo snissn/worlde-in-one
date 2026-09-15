@@ -313,7 +313,7 @@ function seedForShare() {
 
 function dailySharePayload() {
   return {
-    title: "Today's Wordle in One",
+    title: "Today's Word in One",
     text: "I finished today's challenge. Can you find all five only possible answers?",
     url: canonicalAppUrl()
   };
@@ -323,8 +323,8 @@ function challengeSharePayload(seed) {
   const challengeCode = displaySeed(seed);
 
   return {
-    title: `Wordle in One Challenge ${challengeCode}`,
-    text: `Challenge ${challengeCode}: five Wordle boards, one possible answer each.`,
+    title: `Word in One Challenge ${challengeCode}`,
+    text: `Challenge ${challengeCode}: five word puzzles, one possible answer each.`,
     url: canonicalAppUrl(seed)
   };
 }
