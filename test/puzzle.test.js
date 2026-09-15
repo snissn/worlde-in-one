@@ -63,6 +63,15 @@ test("scores duplicate letters with tile-state consumption", () => {
   ]);
 });
 
+test("remaining-answer matching preserves input normalization", () => {
+  const pattern = scoreGuess("CRANE", "CROWN");
+
+  assert.deepEqual(
+    remainingAnswersForRows([{ word: "CRANE", pattern }], ["CROWN", "CIGAR"]),
+    ["CROWN"]
+  );
+});
+
 test("uses classic answers but validates uniqueness against every official guess", () => {
   assert.equal(CLASSIC_ANSWERS.length, 2315);
   assert.equal(VALID_GUESSES.length, 12972);

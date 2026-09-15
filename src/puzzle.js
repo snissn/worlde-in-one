@@ -418,9 +418,13 @@ export function violatedExcludedLetterTiles(wordInput, rows) {
   return Object.freeze(locations.map((location) => Object.freeze(location)));
 }
 
-function matchingCandidates(candidates, guess, pattern) {
+function matchingCandidates(candidates, guess, pattern, normalizeCandidates = false) {
+  const normalizedGuess = normalizeWord(guess);
   const wanted = codeForPattern(pattern);
-  return candidates.filter((candidate) => feedbackCode(guess, candidate) === wanted);
+  return candidates.filter((candidate) => feedbackCode(
+    normalizedGuess,
+    normalizeCandidates ? normalizeWord(candidate) : candidate
+  ) === wanted);
 }
 
 function solverMetrics(candidates, guess, target) {
@@ -716,8 +720,9 @@ export function isTrivialPuzzle(puzzle, answers = ANSWERS) {
 }
 
 export function remainingAnswersForRows(rows, answers = VALID_GUESSES) {
+  const normalizeCandidates = answers !== VALID_GUESSES && answers !== CLASSIC_ANSWERS;
   return rows.reduce(
-    (candidates, row) => matchingCandidates(candidates, row.word, row.pattern),
+    (candidates, row) => matchingCandidates(candidates, row.word, row.pattern, normalizeCandidates),
     [...answers]
   );
 }
