@@ -15,6 +15,7 @@ import {
   violatedExcludedLetterTiles,
   violatedLockedClueTiles
 } from "./puzzle.js";
+import { loadPregeneratedDailyPuzzles } from "./daily-data.js";
 import {
   loadSavedDailyState,
   saveDailyState as persistDailyState,
@@ -907,10 +908,13 @@ function bindEventHandlers() {
   });
 }
 
-function loadPuzzleSet() {
-  daily = initialShareSeed.length >= MIN_SHARE_SEED_LENGTH
-    ? createSeededPuzzles(initialShareSeed, 5)
-    : createDailyPuzzles(new Date(), 5);
+async function loadPuzzleSet() {
+  if (initialShareSeed.length >= MIN_SHARE_SEED_LENGTH) {
+    daily = createSeededPuzzles(initialShareSeed, 5);
+  } else {
+    const today = new Date();
+    daily = await loadPregeneratedDailyPuzzles(today) ?? createDailyPuzzles(today, 5);
+  }
   savedDailyState = loadSavedDailyState(daily);
   puzzleStates = savedDailyState.states;
   isSeededGame = daily.mode === "seed";
@@ -927,7 +931,7 @@ async function initializeApp() {
   renderLoadingState();
   await waitForInitialPaint();
 
-  loadPuzzleSet();
+  await loadPuzzleSet();
   renderKeyboard();
   renderPuzzleTabs();
   renderActivePuzzle();
