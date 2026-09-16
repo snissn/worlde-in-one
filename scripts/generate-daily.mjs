@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
+import { PREGENERATED_END_YEAR, PREGENERATED_START_YEAR } from "../src/daily-data.js";
 import { createDailyPuzzles, signature } from "../src/puzzle.js";
 
 function yearArgument(name, fallback) {
@@ -8,8 +9,8 @@ function yearArgument(name, fallback) {
   return value === undefined ? fallback : Number(value);
 }
 
-const startYear = yearArgument("start-year", 2026);
-const endYear = yearArgument("end-year", 2040);
+const startYear = yearArgument("start-year", PREGENERATED_START_YEAR);
+const endYear = yearArgument("end-year", PREGENERATED_END_YEAR);
 if (!Number.isInteger(startYear) || !Number.isInteger(endYear) || endYear < startYear) {
   throw new Error("Expected integer --start-year and --end-year values in ascending order");
 }

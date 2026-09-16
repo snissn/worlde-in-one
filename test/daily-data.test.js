@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { decodeDailyPuzzles, loadPregeneratedDailyPuzzles } from "../src/daily-data.js";
+import {
+  PREGENERATED_END_YEAR,
+  PREGENERATED_START_YEAR,
+  decodeDailyPuzzles,
+  loadPregeneratedDailyPuzzles
+} from "../src/daily-data.js";
 import { createDailyPuzzles, signature } from "../src/puzzle.js";
 
 async function annualData(year) {
@@ -17,10 +22,10 @@ function playableShape(daily) {
   ]);
 }
 
-test("annual data covers and decodes every day from 2026 through 2040", async () => {
+test("annual data covers and decodes every day in the pre-generated horizon", async () => {
   let dayCount = 0;
 
-  for (let year = 2026; year <= 2040; year += 1) {
+  for (let year = PREGENERATED_START_YEAR; year <= PREGENERATED_END_YEAR; year += 1) {
     const payload = await annualData(year);
     const dateKeys = Object.keys(payload.days);
     assert.equal(dateKeys[0], `${year}-01-01`);
@@ -51,7 +56,14 @@ test("daily loader uses its annual asset and returns null for browser fallback",
 
   assert.equal(requestedUrl, "/daily/2026.json");
   assert.equal(loaded.dateKey, "2026-09-15");
-  assert.equal(await loadPregeneratedDailyPuzzles("2041-01-01", async () => ({ ok: false })), null);
+  let outOfRangeRequests = 0;
+  for (const dateKey of ["2025-12-31", "2041-01-01"]) {
+    assert.equal(await loadPregeneratedDailyPuzzles(dateKey, async () => {
+      outOfRangeRequests += 1;
+      return { ok: false };
+    }), null);
+  }
+  assert.equal(outOfRangeRequests, 0);
   assert.equal(await loadPregeneratedDailyPuzzles("2026-09-15", async () => ({
     ok: true,
     json: async () => ({ version: 1, days: {} })

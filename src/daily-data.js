@@ -7,6 +7,8 @@ const PATTERN_STATES = Object.freeze({
 });
 const WORD_PATTERN = /^[a-z]{5}$/;
 const TILE_PATTERN = /^[apc]{5}$/;
+export const PREGENERATED_START_YEAR = 2026;
+export const PREGENERATED_END_YEAR = 2040;
 
 export function decodeDailyPuzzles(payload, dateKey) {
   const encodedPuzzles = payload?.version === 1 ? payload.days?.[dateKey] : null;
@@ -53,6 +55,10 @@ export async function loadPregeneratedDailyPuzzles(
   timeoutMs = 5_000
 ) {
   const dateKey = dateKeyForPuzzle(date);
+  const year = Number(dateKey.slice(0, 4));
+  if (year < PREGENERATED_START_YEAR || year > PREGENERATED_END_YEAR) {
+    return null;
+  }
   if (typeof fetchImpl !== "function") {
     return null;
   }
