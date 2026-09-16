@@ -63,6 +63,41 @@ test("scores duplicate letters with tile-state consumption", () => {
   ]);
 });
 
+test("remaining-answer matching preserves input normalization", () => {
+  const pattern = scoreGuess("CRANE", "CROWN");
+
+  assert.deepEqual(
+    remainingAnswersForRows([{ word: "CRANE", pattern }], ["CROWN", "CIGAR"]),
+    ["CROWN"]
+  );
+  assert.throws(
+    () => remainingAnswersForRows([{
+      word: "zzzzz",
+      pattern: Array(5).fill(TileState.ABSENT)
+    }], ["cat"]),
+    /five-letter word/
+  );
+  assert.deepEqual(
+    remainingAnswersForRows([{ word: "zzzzz", pattern: [TileState.ABSENT] }], ["crown"]),
+    []
+  );
+});
+
+test("generation preserves custom candidate normalization", () => {
+  const candidates = ["steer", "verge", "sower"];
+  const puzzle = buildPuzzleForTarget("steer", {
+    answers: ["steer"],
+    candidates: candidates.map((word) => word.toUpperCase())
+  });
+
+  assert.equal(puzzle.answer, "steer");
+  assert.deepEqual(puzzle.remaining, ["steer"]);
+  assert.equal(
+    difficultyForPuzzle(puzzle, { candidates: candidates.map((word) => word.toUpperCase()) }).score,
+    difficultyForPuzzle(puzzle, { candidates }).score
+  );
+});
+
 test("uses classic answers but validates uniqueness against every official guess", () => {
   assert.equal(CLASSIC_ANSWERS.length, 2315);
   assert.equal(VALID_GUESSES.length, 12972);
@@ -202,6 +237,7 @@ test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
   const expectedLabels = DIFFICULTY_BANDS.map((band) => band.label);
 
   assert.equal(first.dateKey, "2026-06-05");
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["vista", "catch", "agree", "queer", "payee"]);
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
   assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), nextDay.puzzles.map((puzzle) => puzzle.answer));
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
@@ -254,6 +290,7 @@ test("share seeds generate deterministic replayable puzzle sets", () => {
   assert.equal(first.mode, "seed");
   assert.equal(first.shareSeed, "abc234");
   assert.equal(first.dateKey, "seed-abc234");
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["omega", "noise", "olive", "overt", "glyph"]);
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
   assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), other.puzzles.map((puzzle) => puzzle.answer));
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);

@@ -14,6 +14,7 @@ export const TileState = Object.freeze({
 });
 
 const VALID_GUESS_SET = new Set(VALID_GUESSES);
+const FEEDBACK_PLACE_VALUES = Object.freeze([1, 3, 9, 27, 81]);
 const STARTER_WORDS = Object.freeze(["crane", "slate", "trace", "roast", "adieu"]);
 const DEFAULT_DAILY_SPREAD_POOL_SIZE = 12;
 const DEFAULT_DAILY_CANDIDATE_POOL_SIZE = 80;
@@ -115,6 +116,22 @@ export function normalizeWord(input) {
     .slice(0, 5);
 }
 
+function normalizedFiveLetterWord(input) {
+  const word = normalizeWord(input);
+  if (word.length !== 5) {
+    throw new Error(`Expected a five-letter word: ${input}`);
+  }
+  return word;
+}
+
+function normalizedGenerationWords(words) {
+  if (words === CLASSIC_ANSWERS || words === VALID_GUESSES) {
+    return words;
+  }
+
+  return words.map(normalizedFiveLetterWord);
+}
+
 export function isValidGuess(word) {
   return VALID_GUESS_SET.has(normalizeWord(word));
 }
@@ -122,6 +139,48 @@ export function isValidGuess(word) {
 export function scrabbleScoreForWord(wordInput) {
   return [...normalizeWord(wordInput)]
     .reduce((score, letter) => score + (SCRABBLE_POINTS[letter] ?? 0), 0);
+}
+
+function feedbackCode(guess, answer) {
+  let code = 0;
+  let usedAnswerPositions = 0;
+
+  for (let i = 0; i < 5; i += 1) {
+    if (guess[i] === answer[i]) {
+      code += 2 * FEEDBACK_PLACE_VALUES[i];
+      usedAnswerPositions |= 1 << i;
+    }
+  }
+
+  for (let i = 0; i < 5; i += 1) {
+    if (guess[i] === answer[i]) {
+      continue;
+    }
+
+    for (let j = 0; j < 5; j += 1) {
+      if ((usedAnswerPositions & (1 << j)) === 0 && guess[i] === answer[j]) {
+        code += FEEDBACK_PLACE_VALUES[i];
+        usedAnswerPositions |= 1 << j;
+        break;
+      }
+    }
+  }
+
+  return code;
+}
+
+function codeForPattern(pattern) {
+  let code = 0;
+
+  for (let i = 0; i < 5; i += 1) {
+    if (pattern[i] === TileState.CORRECT) {
+      code += 2 * FEEDBACK_PLACE_VALUES[i];
+    } else if (pattern[i] === TileState.PRESENT) {
+      code += FEEDBACK_PLACE_VALUES[i];
+    }
+  }
+
+  return code;
 }
 
 export function scoreGuess(guessInput, answerInput) {
@@ -132,29 +191,13 @@ export function scoreGuess(guessInput, answerInput) {
     throw new Error("scoreGuess expects two five-letter words");
   }
 
-  const result = Array(5).fill(TileState.ABSENT);
-  const remainingAnswer = answer.split("");
-
-  for (let i = 0; i < 5; i += 1) {
-    if (guess[i] === answer[i]) {
-      result[i] = TileState.CORRECT;
-      remainingAnswer[i] = null;
-    }
-  }
-
-  for (let i = 0; i < 5; i += 1) {
-    if (result[i] === TileState.CORRECT) {
-      continue;
-    }
-
-    const foundAt = remainingAnswer.indexOf(guess[i]);
-    if (foundAt !== -1) {
-      result[i] = TileState.PRESENT;
-      remainingAnswer[foundAt] = null;
-    }
-  }
-
-  return result;
+  const code = feedbackCode(guess, answer);
+  return FEEDBACK_PLACE_VALUES.map((placeValue) => {
+    const value = Math.floor(code / placeValue) % 3;
+    if (value === 2) return TileState.CORRECT;
+    if (value === 1) return TileState.PRESENT;
+    return TileState.ABSENT;
+  });
 }
 
 export function signature(pattern) {
@@ -391,29 +434,33 @@ export function violatedExcludedLetterTiles(wordInput, rows) {
   return Object.freeze(locations.map((location) => Object.freeze(location)));
 }
 
-function matchingCandidates(candidates, guess, pattern) {
-  const wanted = signature(pattern);
-  return candidates.filter((candidate) => signature(scoreGuess(guess, candidate)) === wanted);
-}
-
-function patternCounts(candidates, guess) {
-  const counts = new Map();
-
-  for (const candidate of candidates) {
-    const key = signature(scoreGuess(guess, candidate));
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+function matchingCandidates(candidates, guess, pattern, normalizeCandidates = false) {
+  const normalizedGuess = normalizedFiveLetterWord(guess);
+  if (pattern.length !== 5) {
+    return [];
   }
-
-  return counts;
+  const wanted = codeForPattern(pattern);
+  return candidates.filter((candidate) => feedbackCode(
+    normalizedGuess,
+    normalizeCandidates ? normalizedFiveLetterWord(candidate) : candidate
+  ) === wanted);
 }
 
-function solverMetrics(candidates, guess) {
-  const counts = patternCounts(candidates, guess);
+function solverMetrics(candidates, guess, target) {
+  const counts = new Uint32Array(243);
   let worstBucket = 0;
   let sumSquares = 0;
   let entropy = 0;
 
-  for (const count of counts.values()) {
+  for (const candidate of candidates) {
+    counts[feedbackCode(guess, candidate)] += 1;
+  }
+
+  for (const count of counts) {
+    if (count === 0) {
+      continue;
+    }
+
     worstBucket = Math.max(worstBucket, count);
     sumSquares += count * count;
 
@@ -422,9 +469,9 @@ function solverMetrics(candidates, guess) {
   }
 
   return {
-    counts,
     entropy,
     expectedRemaining: sumSquares / candidates.length,
+    nextCount: counts[feedbackCode(guess, target)],
     worstBucket
   };
 }
@@ -462,9 +509,8 @@ function chooseInformationProbe(target, candidates, used, rows, probePoolSize = 
       continue;
     }
 
-    const metrics = solverMetrics(candidates, guess);
-    const pattern = scoreGuess(guess, target);
-    const nextCount = metrics.counts.get(signature(pattern)) ?? 0;
+    const metrics = solverMetrics(candidates, guess, target);
+    const nextCount = metrics.nextCount;
 
     if (nextCount >= candidates.length) {
       continue;
@@ -693,8 +739,9 @@ export function isTrivialPuzzle(puzzle, answers = ANSWERS) {
 }
 
 export function remainingAnswersForRows(rows, answers = VALID_GUESSES) {
+  const normalizeCandidates = answers !== VALID_GUESSES && answers !== CLASSIC_ANSWERS;
   return rows.reduce(
-    (candidates, row) => matchingCandidates(candidates, row.word, row.pattern),
+    (candidates, row) => matchingCandidates(candidates, row.word, row.pattern, normalizeCandidates),
     [...answers]
   );
 }
@@ -724,7 +771,7 @@ function difficultyScoreBreakdown(features) {
 }
 
 export function difficultyForPuzzle(puzzle, options = {}) {
-  const answers = options.candidates ?? VALID_GUESSES;
+  const answers = normalizedGenerationWords(options.candidates ?? VALID_GUESSES);
   const features = puzzleClueFeatures(puzzle, true, answers);
   const unknownPositions = 5 - features.correctPositions;
   const unknownLetters = 5 - features.requiredLetters;
@@ -744,8 +791,8 @@ export function difficultyForPuzzle(puzzle, options = {}) {
 
 export function buildPuzzleForTarget(targetInput, options = {}) {
   const target = normalizeWord(targetInput);
-  const answers = options.answers ?? answerBankForMode(options.answerBank);
-  const candidatesUniverse = options.candidates ?? VALID_GUESSES;
+  const answers = normalizedGenerationWords(options.answers ?? answerBankForMode(options.answerBank));
+  const candidatesUniverse = normalizedGenerationWords(options.candidates ?? VALID_GUESSES);
   const probePoolSize = options.probePoolSize ?? DEFAULT_PROBE_POOL_SIZE;
   if (!answers.includes(target) || !candidatesUniverse.includes(target)) {
     throw new Error(`Unknown answer word: ${targetInput}`);
