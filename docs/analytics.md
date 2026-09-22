@@ -32,6 +32,7 @@ tricky, hard, expert) and `puzzle_number` (1–5).
 | `answer_reveal` | Each Reveal action on an unsolved puzzle, including repeated actions. |
 | `level_end` | A newly solved puzzle is saved. All level ends are successful submissions. |
 | `game_complete` | The newly solved puzzle completes all five. |
+| `next_puzzle` | The continuation button opens the next unsolved puzzle; puzzle dimensions identify the completed puzzle being left. |
 | `help_open` | How it works opens; `entry_point=header`. |
 | `share_attempt` | Share invoked; `method` is native or clipboard. |
 | `share` | Native sharing resolves successfully or clipboard copy succeeds. |

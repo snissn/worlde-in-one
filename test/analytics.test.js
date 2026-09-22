@@ -149,6 +149,32 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   });
 
   let app = await loadApp();
+  assert.equal(document.querySelector("#play-more-panel").hidden, true);
+  app.puzzle(1);
+  app.click("#reveal");
+  app.key("Enter");
+  assert.equal(document.querySelector("#play-more-panel").hidden, false);
+  assert.equal(document.querySelector("#next-puzzle").textContent, "Next: Tricky");
+  app.click("#next-puzzle");
+  assert.equal(app.events.at(-1).name, "next_puzzle");
+  assert.equal(app.events.at(-1).puzzle_number, 2);
+  assert.equal(document.querySelector("#play-more-panel").hidden, true);
+  for (const index of [2, 3, 4]) {
+    app.puzzle(index);
+    app.click("#reveal");
+    app.key("Enter");
+  }
+  assert.equal(document.querySelector("#next-puzzle").textContent, "Next: Easy", "wrap to skipped puzzles");
+  app = await loadApp(app.storage);
+  assert.equal(document.querySelector("#next-puzzle").hidden, false, "restore continuation after refresh");
+  app.click("#next-puzzle");
+  app.click("#reveal");
+  app.key("Enter");
+  assert.equal(document.querySelector("#next-puzzle").hidden, true);
+  assert.equal(document.querySelector("#share-seed-link").hidden, false);
+  assert.equal(document.querySelector("#new-seed-game").hidden, false);
+
+  app = await loadApp();
   app.click("#reveal");
   assert.deepEqual(app.events.map(({ name, used_reveal }) => [name, used_reveal]), [
     ["game_ready", "no"],

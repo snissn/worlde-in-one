@@ -77,6 +77,7 @@ const seedOptionDetail = document.querySelector("#seed-option-detail");
 const shareSeedGameButton = document.querySelector("#share-seed-game");
 const startSeedGameButton = document.querySelector("#start-seed-game");
 const playMorePanel = document.querySelector("#play-more-panel");
+const nextPuzzleButton = document.querySelector("#next-puzzle");
 const playMoreTitle = document.querySelector("#play-more-title");
 const playMoreDetail = document.querySelector("#play-more-detail");
 const shareSeedLinkButton = document.querySelector("#share-seed-link");
@@ -580,6 +581,7 @@ function submitGuess() {
   saveDailyState();
   trackEvent("level_end", analyticsContext());
   if (isGameComplete()) trackEvent("game_complete", analyticsContext(false));
+  if (!nextPuzzleButton.hidden) nextPuzzleButton.focus();
 }
 
 function renderKeyboard() {
@@ -712,11 +714,26 @@ function updatePuzzleChrome() {
   dailyTitle.textContent = `Puzzle ${puzzle.dailyNumber} of ${daily.puzzles.length} - ${puzzle.difficultyLabel}`;
 }
 
+function nextUnsolvedPuzzleIndex() {
+  for (let offset = 1; offset <= puzzleStates.length; offset += 1) {
+    const index = (activePuzzleIndex + offset) % puzzleStates.length;
+    if (!puzzleStates[index].submitted) return index;
+  }
+  return -1;
+}
+
 function updatePlayMorePanel() {
   const complete = isGameComplete();
-  playMorePanel.hidden = !complete;
+  const nextIndex = nextUnsolvedPuzzleIndex();
+  playMorePanel.hidden = !activeState().submitted;
+  nextPuzzleButton.hidden = complete;
+  shareSeedLinkButton.hidden = !complete;
+  newSeedGameButton.hidden = !complete;
 
   if (!complete) {
+    playMoreTitle.textContent = `${puzzleStates.filter((state) => state.submitted).length}/${puzzleStates.length} solved`;
+    playMoreDetail.textContent = `Puzzle ${nextIndex + 1} of ${daily.puzzles.length} is up next.`;
+    nextPuzzleButton.textContent = `Next: ${daily.puzzles[nextIndex].difficultyLabel}`;
     return;
   }
 
@@ -938,6 +955,14 @@ function bindEventHandlers() {
     modal?.addEventListener("close", updateModalButtonStates);
     modal?.addEventListener("cancel", updateModalButtonStates);
   }
+
+  nextPuzzleButton.addEventListener("click", () => {
+    const nextIndex = nextUnsolvedPuzzleIndex();
+    if (nextIndex < 0 || !activeState().submitted) return;
+    trackEvent("next_puzzle", analyticsContext());
+    switchPuzzle(nextIndex);
+    keyboardButtons.get("q")?.focus();
+  });
 
   shareSeedLinkButton.addEventListener("click", () => shareCompletion());
   newSeedGameButton.addEventListener("click", () => startSeededGame("completion"));
