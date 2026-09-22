@@ -961,7 +961,7 @@ function bindEventHandlers() {
     if (nextIndex < 0 || !activeState().submitted) return;
     trackEvent("next_puzzle", analyticsContext());
     switchPuzzle(nextIndex);
-    keyboardButtons.get("q")?.focus();
+    keyboard.querySelector('[data-key="enter"]')?.focus();
   });
 
   shareSeedLinkButton.addEventListener("click", () => shareCompletion());

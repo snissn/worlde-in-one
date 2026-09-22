@@ -58,7 +58,7 @@ class Element {
     this.classList = {
       add: (...names) => names.forEach((name) => classes.add(name)),
       remove: (...names) => names.forEach((name) => classes.delete(name)),
-      contains: (name) => classes.has(name),
+      contains: (name) => classes.has(name) || (this.className ?? "").split(" ").includes(name),
       toggle: (name, on) => on ? classes.add(name) : classes.delete(name)
     };
   }
@@ -73,9 +73,11 @@ class Element {
     this.listeners.set(name, [...(this.listeners.get(name) ?? []), callback]);
   }
   dispatch(name, values = {}) {
+    let stopped = false;
     for (const callback of this.listeners.get(name) ?? []) {
-      callback({ target: this, preventDefault() {}, stopPropagation() {}, ...values });
+      callback({ target: this, preventDefault() {}, stopPropagation() { stopped = true; }, ...values });
     }
+    return !stopped;
   }
   querySelectorAll() {
     return this.children.flatMap((child) => [child, ...child.querySelectorAll()]).filter((child) => child.tagName === "button");
@@ -87,7 +89,7 @@ class Element {
   matches() { return ["a", "button", "input", "textarea", "select"].includes(this.tagName); }
   showModal() { this.open = true; }
   close() { this.open = false; }
-  focus() {}
+  focus() { document.activeElement = this; }
   remove() { this.parentElement.children = this.parentElement.children.filter((child) => child !== this); }
   get firstElementChild() { return this.children[0]; }
 }
@@ -132,7 +134,10 @@ async function loadApp(storage = new Map(), navigator = {}) {
   return {
     events, storage, navigator, location, window, timers, navigations,
     click: (selector) => elements.get(selector).dispatch("click"),
-    key: (key) => document.dispatch("keydown", { key, target: document.body }),
+    key: (key) => {
+      const target = document.activeElement ?? document.body;
+      if (target.dispatch("keydown", { key, target })) document.dispatch("keydown", { key, target });
+    },
     puzzle: (index) => elements.get("#puzzle-tabs").children[index].dispatch("pointerdown"),
     screenKey: (key) => elements.get("#keyboard").querySelectorAll().find((button) => button.dataset.key === key).dispatch("pointerdown")
   };
@@ -159,6 +164,10 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   assert.equal(app.events.at(-1).name, "next_puzzle");
   assert.equal(app.events.at(-1).puzzle_number, 2);
   assert.equal(document.querySelector("#play-more-panel").hidden, true);
+  for (const letter of encoded[2][0]) app.key(letter);
+  app.key("Enter");
+  assert.equal(app.events.at(-1).name, "level_end", "physical Enter submits after continuation moves focus");
+  assert.equal(app.events.at(-1).puzzle_number, 3);
   for (const index of [2, 3, 4]) {
     app.puzzle(index);
     app.click("#reveal");
