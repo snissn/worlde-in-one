@@ -69,6 +69,11 @@
 
         <div class="daily-panel" aria-label="Daily puzzle selector">
           <span id="daily-title" class="screen-reader-only">Puzzle 1 of 5</span>
+          <div id="daily-status" class="daily-status" hidden>
+            <p class="daily-progress" aria-live="polite"><strong id="daily-solved">0/5 solved</strong><span id="daily-streak">0-day streak</span></p>
+            <p aria-live="polite"><span id="daily-availability">New puzzles at local midnight.</span> <a id="daily-refresh" href="/" hidden>Play today</a></p>
+            <p>One solve a day. Revealed solves count. This device only.</p>
+          </div>
           <div id="puzzle-tabs" class="puzzle-tabs"></div>
         </div>
 

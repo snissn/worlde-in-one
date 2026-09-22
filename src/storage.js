@@ -1,4 +1,4 @@
-import { TileState, normalizeWord } from "./puzzle.js";
+import { TileState, dateKeyForPuzzle, normalizeWord } from "./puzzle.js";
 
 const STORAGE_PREFIX = "wordle-in-one-state";
 
@@ -21,6 +21,33 @@ export function storageKey(dateKey) {
 
 function getStorage(storage) {
   return storage ?? globalThis.window?.localStorage ?? globalThis.localStorage;
+}
+
+export function loadDailyStreak(now = new Date(), storage = null) {
+  try {
+    const savedStorage = getStorage(storage);
+    if (!savedStorage) return null;
+    const day = new Date(now);
+    day.setHours(12, 0, 0, 0);
+    let streak = 0;
+    for (let offset = 0; ; offset += 1) {
+      const dateKey = dateKeyForPuzzle(day);
+      const raw = savedStorage.getItem(storageKey(dateKey));
+      let saved;
+      try { saved = JSON.parse(raw); } catch { saved = null; }
+      const solved = saved?.version === 1 && saved.dateKey === dateKey && Array.isArray(saved.states) &&
+        saved.states.some((state, index) => {
+          const answer = normalizeWord(state?.answer ?? saved.answers?.[index]);
+          return answer.length === 5 && state?.submitted === true && normalizeWord(state.guess) === answer;
+        });
+      if (solved) streak += 1;
+      else if (offset > 0) return streak;
+      // Calendar steps preserve streaks across 23-hour and 25-hour DST days.
+      day.setDate(day.getDate() - 1);
+    }
+  } catch {
+    return null;
+  }
 }
 
 function fallbackDailyState(dailySet) {

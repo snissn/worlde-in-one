@@ -280,6 +280,28 @@ h1 {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
+.daily-status {
+  padding: 0 3px 7px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.daily-status p {
+  margin: 0;
+}
+
+.daily-progress {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+}
+
+.daily-status a {
+  color: var(--accent);
+}
+
 .puzzle-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

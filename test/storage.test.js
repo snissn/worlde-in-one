@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { TileState } from "../src/puzzle.js";
 import {
+  loadDailyStreak,
   loadSavedDailyState,
   saveDailyState,
   storageKey
@@ -163,4 +164,46 @@ test("reveal attribution survives reload and follows its answer across releases"
   assert.equal(restored.states[1].usedReveal, true);
   assert.equal(restored.states[1].submitted, false);
   assert.equal(restored.states[0].usedReveal, false);
+});
+
+test("daily streak uses existing valid solves, keeps yesterday's streak, and includes revealed solves", () => {
+  const storage = memoryStorage();
+  const save = (dateKey, usedReveal = false) => saveDailyState({
+    dateKey, puzzles: [{ answer: "cigar" }]
+  }, 0, [{ guess: "cigar", submitted: true, usedReveal }], storage);
+  const today = new Date(2028, 2, 1, 12);
+  save("2028-02-28");
+  save("2028-02-29");
+  save("2028-03-02");
+  save("seed-abc234");
+  assert.equal(loadDailyStreak(today, storage), 2);
+  save("2028-03-01", true);
+  assert.equal(loadDailyStreak(today, storage), 3);
+  save("2028-03-01", true);
+  assert.equal(loadDailyStreak(today, storage), 3, "repeat saves do not add streak days");
+  assert.equal(loadDailyStreak(new Date(2028, 2, 5, 12), storage), 0, "a missed day breaks the streak");
+
+  storage.setItem(storageKey("2028-02-29"), "broken json");
+  assert.equal(loadDailyStreak(today, storage), 1);
+  storage.setItem(storageKey("2028-03-01"), JSON.stringify({
+    version: 1, dateKey: "2028-03-01", states: [{ answer: "cigar", guess: "rebut", submitted: true }]
+  }));
+  assert.equal(loadDailyStreak(today, storage), 0, "invalid submissions cannot earn a streak");
+  assert.equal(loadDailyStreak(today, { getItem() { throw new Error("blocked"); } }), null);
+});
+
+test("daily streak steps through local calendar dates across both DST transitions", (t) => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "America/New_York";
+  t.after(() => {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  });
+  for (const dates of [["2026-03-07", "2026-03-08", "2026-03-09"], ["2026-10-31", "2026-11-01", "2026-11-02"]]) {
+    const storage = memoryStorage();
+    for (const dateKey of dates) {
+      saveDailyState({ dateKey, puzzles: [{ answer: "cigar" }] }, 0, [{ guess: "cigar", submitted: true }], storage);
+    }
+    assert.equal(loadDailyStreak(new Date(`${dates[2]}T00:01:00`), storage), 3);
+  }
 });
