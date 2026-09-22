@@ -49,17 +49,20 @@ test("saved daily state survives releases that change unrelated puzzle answers",
   assert.deepEqual(saved.states[0], {
     guess: "cig",
     submitted: false,
-    pattern: null
+    pattern: null,
+    usedReveal: false
   });
   assert.deepEqual(saved.states[1], {
     guess: "rebut",
     submitted: true,
-    pattern: Array(5).fill(TileState.CORRECT)
+    pattern: Array(5).fill(TileState.CORRECT),
+    usedReveal: false
   });
   assert.deepEqual(saved.states[2], {
     guess: "",
     submitted: false,
-    pattern: null
+    pattern: null,
+    usedReveal: false
   });
 });
 
@@ -105,8 +108,8 @@ test("saved daily state still resets for another date", () => {
   assert.deepEqual(loadSavedDailyState(daily, storage), {
     activePuzzleIndex: 0,
     states: [
-      { guess: "", submitted: false, pattern: null },
-      { guess: "", submitted: false, pattern: null }
+      { guess: "", submitted: false, pattern: null, usedReveal: false },
+      { guess: "", submitted: false, pattern: null, usedReveal: false }
     ]
   });
 });
@@ -125,8 +128,8 @@ test("save daily state writes answer identities for future release recovery", ()
   assert.equal(saved.activeAnswer, "rebut");
   assert.deepEqual(saved.answers, ["cigar", "rebut"]);
   assert.deepEqual(saved.states, [
-    { answer: "cigar", guess: "cigar", submitted: true },
-    { answer: "rebut", guess: "reb", submitted: false }
+    { answer: "cigar", guess: "cigar", submitted: true, usedReveal: false },
+    { answer: "rebut", guess: "reb", submitted: false, usedReveal: false }
   ]);
 });
 
@@ -145,4 +148,19 @@ test("seeded play state is isolated by puzzle set key", () => {
   assert.equal(JSON.parse(storage.getItem(storageKey(seed.dateKey))).states[0].guess, "ci");
   assert.equal(loadSavedDailyState(daily, storage).states[0].guess, "cigar");
   assert.equal(loadSavedDailyState(seed, storage).states[0].guess, "ci");
+});
+
+test("reveal attribution survives reload and follows its answer across releases", () => {
+  const daily = dailySet(["cigar", "rebut"]);
+  const storage = memoryStorage();
+  saveDailyState(daily, 0, [
+    { guess: "cigar", submitted: false, usedReveal: true },
+    { guess: "", submitted: false, usedReveal: false }
+  ], storage);
+
+  const restored = loadSavedDailyState(dailySet(["rebut", "cigar"]), storage);
+  assert.equal(restored.activePuzzleIndex, 1);
+  assert.equal(restored.states[1].usedReveal, true);
+  assert.equal(restored.states[1].submitted, false);
+  assert.equal(restored.states[0].usedReveal, false);
 });
