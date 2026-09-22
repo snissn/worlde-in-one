@@ -22,6 +22,7 @@ import {
   solvedPattern
 } from "./storage.js";
 import { canonicalAppUrl, deploymentAppUrl } from "./urls.js";
+import { initializeAnalytics, trackEvent } from "./analytics.js";
 
 const KEYBOARD_ROWS = Object.freeze([
   Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
@@ -51,6 +52,9 @@ let isSeededGame = false;
 let activePuzzleIndex = 0;
 let puzzle = null;
 let cachedChallengeSeed = null;
+let challengeNavigationPending = false;
+let gameStarted = false;
+const startedPuzzles = new Set();
 
 const grid = document.querySelector("#grid");
 const keyboard = document.querySelector("#keyboard");
@@ -151,6 +155,29 @@ function activeState() {
   return puzzleStates[activePuzzleIndex];
 }
 
+function analyticsContext(includePuzzle = true) {
+  return {
+    game_mode: isSeededGame ? "challenge" : "daily",
+    used_reveal: (includePuzzle ? activeState()?.usedReveal : puzzleStates.some((state) => state.usedReveal)) ? "yes" : "no",
+    ...(includePuzzle && puzzle ? {
+      level_name: puzzle.difficultyLabel.toLowerCase(),
+      puzzle_number: activePuzzleIndex + 1
+    } : {})
+  };
+}
+
+function startPuzzleInteraction() {
+  if (activeState().submitted) return;
+  if (!gameStarted) {
+    gameStarted = true;
+    trackEvent("game_start", analyticsContext(false));
+  }
+  if (!startedPuzzles.has(activePuzzleIndex)) {
+    startedPuzzles.add(activePuzzleIndex);
+    trackEvent("level_start", analyticsContext());
+  }
+}
+
 function clearToasts() {
   toastRegion.replaceChildren();
 }
@@ -200,7 +227,8 @@ function shakeClueTiles(locations = []) {
   }
 }
 
-function showInvalidGuess(text, clueLocations = []) {
+function showInvalidGuess(text, rejectionReason, clueLocations = []) {
+  trackEvent("guess_rejected", { ...analyticsContext(), rejection_reason: rejectionReason });
   shakeFinalRow();
   shakeClueTiles(clueLocations);
   showToast(text, "error");
@@ -345,9 +373,15 @@ function nextChallengeSeed() {
   return dailyChallengeSeed(today, (currentIndex ?? 0) + 1);
 }
 
-function startSeededGame(seed = nextChallengeSeed()) {
+function startSeededGame(entryPoint, seed = nextChallengeSeed()) {
+  if (challengeNavigationPending) return;
+  challengeNavigationPending = true;
+  const url = seedUrl(seed);
   cachedChallengeSeed = null;
-  window.location.assign(seedUrl(seed));
+  trackEvent("challenge_start", { ...analyticsContext(false), entry_point: entryPoint }, () => {
+    challengeNavigationPending = false;
+    window.location.assign(url);
+  });
 }
 
 function isGameComplete() {
@@ -364,29 +398,45 @@ async function copySharePayload(payload, successMessage = "Share text copied") {
   }
 }
 
-async function sharePayload(payload, successMessage = "Share text copied") {
+async function sharePayload(payload, successMessage, context) {
+  let method = "clipboard";
   try {
-    if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) {
+    if (navigator.share && (!navigator.canShare || navigator.canShare(payload))) method = "native";
+  } catch {
+    // A rejected capability check can still fall back to copying the invitation.
+  }
+  trackEvent("share_attempt", { ...context, method });
+  try {
+    if (method === "native") {
       await navigator.share(payload);
+      trackEvent("share", { ...context, method });
       return;
     }
   } catch (error) {
     if (error?.name === "AbortError") {
+      trackEvent("share_failed", { ...context, method, failure_reason: "cancelled" });
       return;
     }
   }
 
-  if (!(await copySharePayload(payload, successMessage))) {
+  if (await copySharePayload(payload, successMessage)) {
+    trackEvent("share", { ...context, method: "clipboard" });
+  } else {
+    trackEvent("share_failed", { ...context, method: "clipboard", failure_reason: "unavailable" });
     showToast("Share unavailable", "error");
   }
 }
 
-async function shareChallenge(seed = seedForShare()) {
-  await sharePayload(challengeSharePayload(seed), "Challenge invite copied");
+async function shareChallenge(seed = seedForShare(), entryPoint = "options") {
+  await sharePayload(challengeSharePayload(seed), "Challenge invite copied", {
+    ...analyticsContext(), content_type: "challenge", entry_point: entryPoint
+  });
 }
 
 async function shareCompletion() {
-  await sharePayload(completionSharePayload(), isSeededGame ? "Challenge invite copied" : "Daily invite copied");
+  await sharePayload(completionSharePayload(), isSeededGame ? "Challenge invite copied" : "Daily invite copied", {
+    ...analyticsContext(false), content_type: isSeededGame ? "challenge" : "daily_result", entry_point: "completion"
+  });
 }
 
 function makeTile(letter = "", state = null) {
@@ -465,7 +515,9 @@ function updateFinalTiles(word, pattern = null) {
 
 function syncGuess(rawValue) {
   const state = activeState();
-  state.guess = normalizeWord(rawValue);
+  const guess = normalizeWord(rawValue);
+  if (guess !== state.guess) startPuzzleInteraction();
+  state.guess = guess;
 
   updateFinalTiles(state.guess);
   saveDailyState();
@@ -485,34 +537,36 @@ function submitGuess() {
     return;
   }
 
+  startPuzzleInteraction();
+
   if (state.guess.length !== 5) {
-    showInvalidGuess("Not enough letters");
+    showInvalidGuess("Not enough letters", "too_short");
     return;
   }
 
   if (!isValidGuess(state.guess)) {
-    showInvalidGuess("Not in word list");
+    showInvalidGuess("Not in word list", "not_in_word_list");
     return;
   }
 
   if (!honorsLockedClues(state.guess, puzzle.rows)) {
-    showInvalidGuess("Doesn't match clues", violatedLockedClueTiles(state.guess, puzzle.rows));
+    showInvalidGuess("Doesn't match clues", "locked_clue", violatedLockedClueTiles(state.guess, puzzle.rows));
     return;
   }
 
   const excludedLetterTiles = violatedExcludedLetterTiles(state.guess, puzzle.rows);
   if (excludedLetterTiles.length > 0) {
-    showInvalidGuess(excludedLetterMessage(excludedLetterTiles), excludedLetterEvidenceTiles(excludedLetterTiles));
+    showInvalidGuess(excludedLetterMessage(excludedLetterTiles), "excluded_letter", excludedLetterEvidenceTiles(excludedLetterTiles));
     return;
   }
 
   if (!ANSWERS.includes(state.guess)) {
-    showInvalidGuess("Not the answer");
+    showInvalidGuess("Not the answer", "not_answer");
     return;
   }
 
   if (state.guess !== puzzle.answer) {
-    showInvalidGuess("Not the answer");
+    showInvalidGuess("Not the answer", "not_answer");
     return;
   }
 
@@ -524,6 +578,8 @@ function submitGuess() {
   setKeyboardDisabled(true);
   showToast("Got it", "success");
   saveDailyState();
+  trackEvent("level_end", analyticsContext());
+  if (isGameComplete()) trackEvent("game_complete", analyticsContext(false));
 }
 
 function renderKeyboard() {
@@ -808,6 +864,7 @@ function openModal(modal) {
 
   closeOtherModals(modal);
   modal.showModal();
+  if (modal === helpModal) trackEvent("help_open", { ...analyticsContext(), entry_point: "header" });
   updateModalButtonStates();
 }
 
@@ -883,16 +940,16 @@ function bindEventHandlers() {
   }
 
   shareSeedLinkButton.addEventListener("click", () => shareCompletion());
-  newSeedGameButton.addEventListener("click", () => startSeededGame());
+  newSeedGameButton.addEventListener("click", () => startSeededGame("completion"));
   shareSeedGameButton.addEventListener("click", () => shareChallenge());
-  startSeedGameButton.addEventListener("click", () => startSeededGame());
+  startSeedGameButton.addEventListener("click", () => startSeededGame("options"));
   seedDateLink.addEventListener("click", (event) => {
     if (!isSeededGame) {
       return;
     }
 
     event.preventDefault();
-    shareChallenge(daily.shareSeed);
+    shareChallenge(daily.shareSeed, "header");
   });
 
   revealButton.addEventListener("click", () => {
@@ -901,6 +958,9 @@ function bindEventHandlers() {
       return;
     }
 
+    state.usedReveal = true;
+    startPuzzleInteraction();
+    trackEvent("answer_reveal", analyticsContext());
     syncGuess(puzzle.answer);
     showToast("Answer filled in");
     closeModal(answerModal);
@@ -923,6 +983,7 @@ async function loadPuzzleSet() {
 }
 
 async function initializeApp() {
+  initializeAnalytics();
   syncViewportHeight();
   window.visualViewport?.addEventListener("resize", syncViewportHeight);
   window.visualViewport?.addEventListener("scroll", syncViewportHeight);
@@ -939,6 +1000,7 @@ async function initializeApp() {
   saveDailyState();
   bindEventHandlers();
   updateModalButtonStates();
+  trackEvent("game_ready", analyticsContext(false));
 }
 
 initializeApp().catch(renderLoadError);

@@ -10,7 +10,8 @@ export function createEmptyPuzzleState() {
   return {
     guess: "",
     submitted: false,
-    pattern: null
+    pattern: null,
+    usedReveal: false
   };
 }
 
@@ -111,6 +112,7 @@ export function loadSavedDailyState(dailySet, storage = null) {
         ...createEmptyPuzzleState(),
         guess,
         submitted,
+        usedReveal: savedState.usedReveal === true,
         pattern: submitted ? solvedPattern() : null
       };
     });
@@ -136,7 +138,8 @@ export function saveDailyState(dailySet, activePuzzleIndex, puzzleStates, storag
       states: puzzleStates.map((state, index) => ({
         answer: answers[index] ?? null,
         guess: state.guess,
-        submitted: state.submitted
+        submitted: state.submitted,
+        usedReveal: state.usedReveal === true
       }))
     }));
   } catch {
