@@ -22,7 +22,7 @@ test("GA loads once on production, excludes challenge identifiers, and preserves
   assert.equal(config.page_location, "https://word-in-one.com/?utm_source=friends&utm_medium=share");
   assert.equal(config.page_referrer, "https://word-in-one.com/");
   assert.equal(config.page_title, "Word in One");
-  trackEvent("level_end", { game_mode: "daily", seed: "abc234", guess: "cigar", answer: "cigar" }, window);
+  trackEvent("level_end", { game_mode: "daily", seed: "abc234", guess: "cigar", answer: "cigar" }, undefined, window);
   assert.deepEqual(window.dataLayer[2][2], { game_name: "word_in_one", game_mode: "daily" });
   assert.doesNotMatch(JSON.stringify(window.dataLayer), /abc234|cigar/);
 });
@@ -34,14 +34,14 @@ test("local and preview traffic stays out of GA, and missing or broken telemetry
       gtag: () => assert.fail("non-production event sent")
     };
     initializeAnalytics(window);
-    trackEvent("game_ready", {}, window);
+    trackEvent("game_ready", {}, undefined, window);
   }
   for (const hostname of ["word-in-one.com", "www.word-in-one.com", "wordle-in-one.com", "www.wordle-in-one.com"]) {
     const window = { location: new URL(`https://${hostname}/`) };
-    assert.doesNotThrow(() => trackEvent("game_ready", {}, window));
+    assert.doesNotThrow(() => trackEvent("game_ready", {}, undefined, window));
     let called = false;
     window.gtag = () => { called = true; throw new Error("blocked"); };
-    assert.doesNotThrow(() => trackEvent("game_ready", {}, window));
+    assert.doesNotThrow(() => trackEvent("game_ready", {}, undefined, window));
     assert.equal(called, true);
   }
 });
@@ -100,6 +100,9 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 async function loadApp(storage = new Map(), navigator = {}) {
   const elements = new Map();
   const events = [];
+  const timers = new Map();
+  const navigations = [];
+  let nextTimer = 0;
   const document = Object.assign(new Element("document"), {
     documentElement: new Element(), body: new Element("body"), referrer: "",
     querySelector: (selector) => {
@@ -110,12 +113,14 @@ async function loadApp(storage = new Map(), navigator = {}) {
     createElementNS: (_, tag) => new Element(tag)
   });
   const location = new URL("https://word-in-one.com/?utm_source=friends");
-  location.assign = (href) => { location.href = href; };
+  location.assign = (href) => { navigations.push(href); location.href = href; };
   const window = {
     document, location, innerHeight: 800,
     gtag: (kind, name, parameters) => events.push({ kind, name, ...parameters }),
     requestAnimationFrame: (callback) => queueMicrotask(callback),
-    setTimeout() {}, addEventListener() {},
+    setTimeout: (callback, delay) => { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+    clearTimeout: (id) => timers.delete(id),
+    addEventListener() {},
     localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) }
   };
   Object.assign(globalThis, { window, document, HTMLElement: Element, HTMLButtonElement: Element });
@@ -125,7 +130,7 @@ async function loadApp(storage = new Map(), navigator = {}) {
   for (let attempt = 0; !events.some((event) => event.name === "game_ready") && attempt < 30; attempt++) await settle();
   assert.equal(events.filter((event) => event.name === "game_ready").length, 1);
   return {
-    events, storage, navigator, location,
+    events, storage, navigator, location, window, timers, navigations,
     click: (selector) => elements.get(selector).dispatch("click"),
     key: (key) => document.dispatch("keydown", { key, target: document.body }),
     puzzle: (index) => elements.get("#puzzle-tabs").children[index].dispatch("pointerdown"),
@@ -224,8 +229,40 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   app.click("#new-seed-game");
   assert.equal(app.events.at(-1).name, "challenge_start");
   assert.equal(app.events.at(-1).entry_point, "completion");
+  assert.equal(app.navigations.length, 0, "navigation waits for event delivery");
+  const challengeEvent = app.events.at(-1);
+  assert.equal(challengeEvent.event_timeout, 500);
+  const fallback = [...app.timers.values()].find((timer) => timer.delay === 500);
+  assert.ok(fallback, "a real JS fallback is scheduled even if gtag never loads");
+  app.click("#start-seed-game");
+  assert.equal(app.events.at(-1), challengeEvent, "repeated clicks do not enqueue another navigation");
+  challengeEvent.event_callback();
+  challengeEvent.event_callback();
+  fallback.callback();
+  assert.equal(app.navigations.length, 1, "callback and fallback race navigates only once");
+  assert.ok(![...app.timers.values()].some((timer) => timer.delay === 500), "callback clears fallback timer");
   assert.equal(app.location.searchParams.get("utm_source"), "friends");
   assert.ok(app.location.searchParams.get("seed"));
   app.click("#start-seed-game");
+  assert.notEqual(app.events.at(-1), challengeEvent, "navigation handoff releases the guard for a restored page");
+  app.events.at(-1).event_callback();
+  assert.equal(app.navigations.length, 2);
+
+  app = await loadApp();
+  app.click("#start-seed-game");
   assert.equal(app.events.at(-1).entry_point, "options");
+  assert.equal(app.navigations.length, 0);
+  [...app.timers.values()].find((timer) => timer.delay === 500).callback();
+  app.events.at(-1).event_callback();
+  assert.equal(app.navigations.length, 1, "blocked tag times out, and a late callback does not navigate again");
+
+  for (const unavailable of ["missing", "throwing", "local"]) {
+    app = await loadApp();
+    if (unavailable === "missing") delete app.window.gtag;
+    if (unavailable === "throwing") app.window.gtag = () => { throw new Error("blocked"); };
+    if (unavailable === "local") app.location.href = "http://localhost:8000/?utm_source=friends";
+    app.click("#start-seed-game");
+    assert.equal(app.navigations.length, 1, `${unavailable} analytics navigates immediately`);
+    assert.ok(![...app.timers.values()].some((timer) => timer.delay === 500));
+  }
 });

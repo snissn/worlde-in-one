@@ -1,4 +1,5 @@
 const MEASUREMENT_ID = "G-29DXR443PK";
+const EVENT_TIMEOUT_MS = 500;
 const PRODUCTION_HOSTS = new Set([
   "word-in-one.com", "www.word-in-one.com",
   "wordle-in-one.com", "www.wordle-in-one.com"
@@ -47,14 +48,29 @@ export function initializeAnalytics(window = globalThis.window) {
   }
 }
 
-export function trackEvent(name, parameters = {}, window = globalThis.window) {
+export function trackEvent(name, parameters = {}, onComplete, window = globalThis.window) {
+  let completed = false;
+  let timeout;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+    if (timeout !== undefined) window.clearTimeout(timeout);
+    onComplete?.();
+  };
   try {
-    if (!isProduction(window) || typeof window.gtag !== "function") return;
+    if (!isProduction(window) || typeof window.gtag !== "function") {
+      finish();
+      return;
+    }
+    // The JS timer also works when gtag.js is blocked and never processes its queue.
+    if (onComplete) timeout = window.setTimeout(finish, EVENT_TIMEOUT_MS);
     window.gtag("event", name, {
       game_name: "word_in_one",
-      ...Object.fromEntries(Object.entries(parameters).filter(([key]) => EVENT_PARAMETERS.has(key)))
+      ...Object.fromEntries(Object.entries(parameters).filter(([key]) => EVENT_PARAMETERS.has(key))),
+      ...(onComplete ? { event_callback: finish, event_timeout: EVENT_TIMEOUT_MS } : {})
     });
   } catch {
     // Blocked or unavailable analytics must never interrupt play.
+    finish();
   }
 }

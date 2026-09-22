@@ -52,6 +52,7 @@ let isSeededGame = false;
 let activePuzzleIndex = 0;
 let puzzle = null;
 let cachedChallengeSeed = null;
+let challengeNavigationPending = false;
 let gameStarted = false;
 const startedPuzzles = new Set();
 
@@ -373,9 +374,14 @@ function nextChallengeSeed() {
 }
 
 function startSeededGame(entryPoint, seed = nextChallengeSeed()) {
-  trackEvent("challenge_start", { ...analyticsContext(false), entry_point: entryPoint });
+  if (challengeNavigationPending) return;
+  challengeNavigationPending = true;
+  const url = seedUrl(seed);
   cachedChallengeSeed = null;
-  window.location.assign(seedUrl(seed));
+  trackEvent("challenge_start", { ...analyticsContext(false), entry_point: entryPoint }, () => {
+    challengeNavigationPending = false;
+    window.location.assign(url);
+  });
 }
 
 function isGameComplete() {

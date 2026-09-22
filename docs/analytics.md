@@ -33,10 +33,10 @@ tricky, hard, expert) and `puzzle_number` (1–5).
 | `level_end` | A newly solved puzzle is saved. All level ends are successful submissions. |
 | `game_complete` | The newly solved puzzle completes all five. |
 | `help_open` | How it works opens; `entry_point=header`. |
-| `share_attempt` | Share invoked; `method=native|clipboard`. |
+| `share_attempt` | Share invoked; `method` is native or clipboard. |
 | `share` | Native sharing resolves successfully or clipboard copy succeeds. |
-| `share_failed` | Native sharing is cancelled or copying fails; `failure_reason=cancelled|unavailable`. |
-| `challenge_start` | New challenge navigation requested; `entry_point=options|completion` describes the source. |
+| `share_failed` | Native sharing is cancelled or copying fails; `failure_reason` is cancelled or unavailable. |
+| `challenge_start` | New challenge navigation requested; `entry_point` is options or completion. |
 
 Sharing includes `content_type=challenge|daily_result` and
 `entry_point=header|options|completion`. A native failure may successfully fall
@@ -48,6 +48,10 @@ Reveal usage persists across refreshes. For set events it means any puzzle in
 the saved set used Reveal; for puzzle events it refers to that puzzle. Old saves
 have no reveal history and default to no. Starts count resumed interactions on
 each page load; completed puzzles never emit another completion on refresh.
+
+New challenge navigation waits for the analytics callback, with a 500ms JavaScript
+fallback if the tag is still loading or blocked. Missing analytics and local or
+preview hosts navigate immediately. Delivery remains best effort within that cap.
 
 ## Weekly UX loop
 
