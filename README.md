@@ -16,6 +16,9 @@ Then open <http://localhost:8000>.
 
 No build step or external dependencies are required.
 
+See [Gameplay analytics](docs/analytics.md) for the GA4 reports, event definitions,
+and weekly UX/retention review workflow.
+
 Daily puzzle sets for 2026 through 2040 are committed as annual files and loaded one year at a time. Challenge links, dates outside that range, and failed data requests use the same generator in the browser as a fallback. Regenerate the files after changing puzzle generation or the word lists:
 
 ```sh
