@@ -170,6 +170,8 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
 
   app = await loadApp();
   assert.deepEqual(app.events.map((event) => event.name), ["game_ready"]);
+  app.click("#share-seed-link");
+  assert.equal(app.events.length, 1, "incomplete sets cannot share a completed result");
   app.puzzle(1);
   app.puzzle(0);
   app.key("Backspace");
@@ -208,8 +210,23 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   app.click("#reveal");
   assert.deepEqual(app.events.map((event) => event.name), ["game_ready"], "refresh never fabricates starts or completions");
 
+  let sharedResult;
+  app.navigator.share = async (payload) => { sharedResult = payload; };
+  app.click("#share-seed-link");
+  await settle();
+  assert.match(sharedResult.text, /🟨🟩🟩🟩🟩 5\/5/);
+  assert.match(sharedResult.text, new RegExp(`Daily ${dateKeyForPuzzle()}`));
+  assert.equal(sharedResult.url, "https://word-in-one.com/");
+  assert.equal(app.events.at(-1).name, "share");
+  assert.equal(app.events.at(-1).method, "native");
+  assert.equal(app.events.at(-1).content_type, "daily_result");
+
   let finishShare;
-  app.navigator.share = () => new Promise((resolve) => { finishShare = resolve; });
+  let invitation;
+  app.navigator.share = (payload) => {
+    invitation = payload;
+    return new Promise((resolve) => { finishShare = resolve; });
+  };
   app.puzzle(0);
   app.click("#share-seed-game");
   assert.equal(app.events.at(-1).name, "share_attempt");
@@ -219,6 +236,8 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   assert.equal(app.events.at(-1).name, "share");
   assert.equal(app.events.at(-1).method, "native");
   assert.equal(app.events.at(-1).puzzle_number, 1, "async share preserves click-time context");
+  assert.match(invitation.text, /five word puzzles, one possible answer each/);
+  assert.doesNotMatch(invitation.text, /🟩|🟨|5\/5/);
 
   app.navigator.share = async () => { throw { name: "AbortError" }; };
   app.navigator.clipboard = { writeText: () => assert.fail("cancelled native share must not copy") };
@@ -233,6 +252,7 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   app.click("#share-seed-link");
   await settle();
   assert.match(copied, /https:\/\/word-in-one.com\//);
+  assert.equal(copied, `${sharedResult.text}\n${sharedResult.url}`, "clipboard and native share the same result");
   assert.equal(app.events.at(-1).name, "share");
   assert.equal(app.events.at(-1).method, "clipboard");
   assert.equal(app.events.at(-1).content_type, "daily_result");

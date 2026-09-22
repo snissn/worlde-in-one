@@ -23,6 +23,7 @@ import {
 } from "./storage.js";
 import { canonicalAppUrl, deploymentAppUrl } from "./urls.js";
 import { initializeAnalytics, trackEvent } from "./analytics.js";
+import { completionSharePayload } from "./share.js";
 
 const KEYBOARD_ROWS = Object.freeze([
   Object.freeze(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]),
@@ -340,14 +341,6 @@ function seedForShare() {
   return cachedChallengeSeed;
 }
 
-function dailySharePayload() {
-  return {
-    title: "Today's Word in One",
-    text: "I finished today's challenge. Can you find all five only possible answers?",
-    url: canonicalAppUrl()
-  };
-}
-
 function challengeSharePayload(seed) {
   const challengeCode = displaySeed(seed);
 
@@ -356,10 +349,6 @@ function challengeSharePayload(seed) {
     text: `Challenge ${challengeCode}: five word puzzles, one possible answer each.`,
     url: canonicalAppUrl(seed)
   };
-}
-
-function completionSharePayload() {
-  return isSeededGame ? challengeSharePayload(daily.shareSeed) : dailySharePayload();
 }
 
 function nextChallengeSeed() {
@@ -434,7 +423,8 @@ async function shareChallenge(seed = seedForShare(), entryPoint = "options") {
 }
 
 async function shareCompletion() {
-  await sharePayload(completionSharePayload(), isSeededGame ? "Challenge invite copied" : "Daily invite copied", {
+  if (!isGameComplete()) return;
+  await sharePayload(completionSharePayload(daily, puzzleStates), "Results copied", {
     ...analyticsContext(false), content_type: isSeededGame ? "challenge" : "daily_result", entry_point: "completion"
   });
 }
