@@ -958,8 +958,8 @@ function bindEventHandlers() {
       return;
     }
 
-    startPuzzleInteraction();
     state.usedReveal = true;
+    startPuzzleInteraction();
     trackEvent("answer_reveal", analyticsContext());
     syncGuess(puzzle.answer);
     showToast("Answer filled in");

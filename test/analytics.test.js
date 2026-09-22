@@ -149,6 +149,15 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   });
 
   let app = await loadApp();
+  app.click("#reveal");
+  assert.deepEqual(app.events.map(({ name, used_reveal }) => [name, used_reveal]), [
+    ["game_ready", "no"],
+    ["game_start", "yes"],
+    ["level_start", "yes"],
+    ["answer_reveal", "yes"]
+  ], "Reveal-first play is attributed before start events are emitted");
+
+  app = await loadApp();
   assert.deepEqual(app.events.map((event) => event.name), ["game_ready"]);
   app.puzzle(1);
   app.puzzle(0);
