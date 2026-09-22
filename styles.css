@@ -474,6 +474,14 @@ h1 {
   transform: translateY(1px);
 }
 
+.board-intro {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .board-wrap {
   width: min(100%, 380px);
   position: relative;

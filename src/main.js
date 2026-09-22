@@ -465,7 +465,7 @@ function renderBoard() {
   for (const [rowIndex, row] of puzzle.rows.entries()) {
     const rowElement = document.createElement("div");
     rowElement.className = "word-row";
-    rowElement.setAttribute("aria-label", `Prefilled guess ${row.word.toUpperCase()}`);
+    rowElement.setAttribute("aria-label", `Clue row ${row.word.toUpperCase()}`);
     clueTiles[rowIndex] = [];
 
     for (let i = 0; i < 5; i += 1) {
@@ -691,7 +691,7 @@ function setKeyboardDisabled(disabled) {
 function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
-  guessNumber.textContent = `Guess #${puzzle.rows.length + 1}`;
+  guessNumber.textContent = "Your turn";
   if (isSeededGame) {
     const seedLabel = `Challenge ${displaySeed(daily.shareSeed)}`;
     dailyDate.hidden = true;
