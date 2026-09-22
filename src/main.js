@@ -16,6 +16,7 @@ import {
   violatedLockedClueTiles
 } from "./puzzle.js";
 import { loadPregeneratedDailyPuzzles } from "./daily-data.js";
+import { explainClue } from "./clue-help.js";
 import {
   loadSavedDailyState,
   saveDailyState as persistDailyState,
@@ -67,6 +68,8 @@ const dailyDate = document.querySelector("#daily-date");
 const seedDateLink = document.querySelector("#seed-date-link");
 const dailyTitle = document.querySelector("#daily-title");
 const revealButton = document.querySelector("#reveal");
+const explainClueButton = document.querySelector("#explain-clue");
+const clueExplanation = document.querySelector("#clue-explanation");
 const settingsButton = document.querySelector("#settings-button");
 const helpButton = document.querySelector("#help-button");
 const answerModal = document.querySelector("#answer-modal");
@@ -457,6 +460,8 @@ function makeTile(letter = "", state = null) {
 }
 
 function renderBoard() {
+  clueExplanation.hidden = true;
+  clueExplanation.textContent = "";
   grid.classList.remove("loading");
   grid.innerHTML = "";
   finalTiles.length = 0;
@@ -950,6 +955,12 @@ function bindEventHandlers() {
 
     event.preventDefault();
     shareChallenge(daily.shareSeed, "header");
+  });
+
+  explainClueButton.addEventListener("click", () => {
+    clueExplanation.textContent = explainClue(puzzle.rows);
+    clueExplanation.hidden = false;
+    trackEvent("clue_explained", { ...analyticsContext(), entry_point: "options" });
   });
 
   revealButton.addEventListener("click", () => {

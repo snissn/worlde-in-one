@@ -33,6 +33,7 @@ tricky, hard, expert) and `puzzle_number` (1–5).
 | `level_end` | A newly solved puzzle is saved. All level ends are successful submissions. |
 | `game_complete` | The newly solved puzzle completes all five. |
 | `help_open` | How it works opens; `entry_point=header`. |
+| `clue_explained` | Explain a clue is selected in options; `entry_point=options`. This only explains visible evidence and does not set `used_reveal`. |
 | `share_attempt` | Share invoked; `method` is native or clipboard. |
 | `share` | Native sharing resolves successfully or clipboard copy succeeds. |
 | `share_failed` | Native sharing is cancelled or copying fails; `failure_reason` is cancelled or unavailable. |
