@@ -156,6 +156,17 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
     ["level_start", "yes"],
     ["answer_reveal", "yes"]
   ], "Reveal-first play is attributed before start events are emitted");
+  app.click("#reveal");
+  assert.equal(app.events.filter((event) => event.name === "answer_reveal").length, 2,
+    "Reveal events count actions, while used_reveal records persistent assistance");
+  app = await loadApp(app.storage);
+  app.click("#reveal");
+  assert.deepEqual(app.events.map(({ name, used_reveal }) => [name, used_reveal]), [
+    ["game_ready", "yes"],
+    ["game_start", "yes"],
+    ["level_start", "yes"],
+    ["answer_reveal", "yes"]
+  ], "Reusing Reveal after refresh still records the action");
 
   app = await loadApp();
   assert.deepEqual(app.events.map((event) => event.name), ["game_ready"]);

@@ -29,7 +29,7 @@ tricky, hard, expert) and `puzzle_number` (1–5).
 | `game_start` | First change to an unsolved guess, submit, or reveal on this page. |
 | `level_start` | First such interaction with each unsolved puzzle on this page. |
 | `guess_rejected` | Invalid submit; `rejection_reason` is `too_short`, `not_in_word_list`, `locked_clue`, `excluded_letter`, or `not_answer`. |
-| `answer_reveal` | Answer is filled in by Reveal. |
+| `answer_reveal` | Each Reveal action on an unsolved puzzle, including repeated actions. |
 | `level_end` | A newly solved puzzle is saved. All level ends are successful submissions. |
 | `game_complete` | The newly solved puzzle completes all five. |
 | `help_open` | How it works opens; `entry_point=header`. |
@@ -44,6 +44,8 @@ back to clipboard; attempts then have method native and success has method
 clipboard. Cancellation is separate from a failed copy. A successful share API
 call does not prove a recipient opened the invitation.
 
+Reveal events measure action frequency; clicking Reveal again after a refresh
+also counts. Use `level_end` with `used_reveal` to assess assisted solves.
 Reveal usage persists across refreshes. For set events it means any puzzle in
 the saved set used Reveal; for puzzle events it refers to that puzzle. Old saves
 have no reveal history and default to no. Starts count resumed interactions on
