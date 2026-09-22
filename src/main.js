@@ -465,6 +465,7 @@ function renderBoard() {
   for (const [rowIndex, row] of puzzle.rows.entries()) {
     const rowElement = document.createElement("div");
     rowElement.className = "word-row";
+    rowElement.setAttribute("role", "group");
     rowElement.setAttribute("aria-label", `Clue row ${row.word.toUpperCase()}`);
     clueTiles[rowIndex] = [];
 
@@ -479,6 +480,7 @@ function renderBoard() {
 
   const finalRow = document.createElement("div");
   finalRow.className = "word-row final-row";
+  finalRow.setAttribute("role", "group");
   finalRow.setAttribute("aria-label", "Your final guess");
 
   for (let i = 0; i < 5; i += 1) {
@@ -691,7 +693,7 @@ function setKeyboardDisabled(disabled) {
 function updatePuzzleChrome() {
   const remainingAnswers = remainingAnswersForRows(puzzle.rows).length;
   remainingCount.textContent = String(remainingAnswers);
-  guessNumber.textContent = "Your turn";
+  guessNumber.textContent = "Your answer";
   if (isSeededGame) {
     const seedLabel = `Challenge ${displaySeed(daily.shareSeed)}`;
     dailyDate.hidden = true;

@@ -482,6 +482,16 @@ h1 {
   text-align: center;
 }
 
+@media (max-width: 480px) {
+  .game-shell:has(.board-intro) {
+    overflow-y: auto;
+  }
+
+  .game-shell:has(.board-intro) > * {
+    flex-shrink: 0;
+  }
+}
+
 .board-wrap {
   width: min(100%, 380px);
   position: relative;
