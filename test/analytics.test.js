@@ -291,9 +291,7 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
   assert.equal(app.events.at(-1).name, "clue_explained");
   assert.equal(app.events.at(-1).used_reveal, "no");
   assert.equal(app.events.filter((event) => event.name === "game_start").length, 0);
-  assert.equal(document.querySelector("#clue-explanation").hidden, false);
   assert.match(document.querySelector("#clue-explanation").textContent, /Row \d:/);
   app.puzzle(1);
-  assert.equal(document.querySelector("#clue-explanation").hidden, true);
   assert.equal(document.querySelector("#clue-explanation").textContent, "");
 });

@@ -460,7 +460,6 @@ function makeTile(letter = "", state = null) {
 }
 
 function renderBoard() {
-  clueExplanation.hidden = true;
   clueExplanation.textContent = "";
   grid.classList.remove("loading");
   grid.innerHTML = "";
@@ -959,7 +958,6 @@ function bindEventHandlers() {
 
   explainClueButton.addEventListener("click", () => {
     clueExplanation.textContent = explainClue(puzzle.rows);
-    clueExplanation.hidden = false;
     trackEvent("clue_explained", { ...analyticsContext(), entry_point: "options" });
   });
 

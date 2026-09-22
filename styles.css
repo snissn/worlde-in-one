@@ -95,6 +95,10 @@ p {
   line-height: 1.5;
 }
 
+.clue-explanation:empty {
+  margin: 0;
+}
+
 .modal-open {
   overflow: hidden;
 }
