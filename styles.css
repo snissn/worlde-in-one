@@ -444,6 +444,10 @@ h1 {
   gap: 7px;
 }
 
+#next-puzzle {
+  grid-column: 1 / -1;
+}
+
 .completion-share-icon {
   width: 18px;
   height: 18px;
@@ -1422,5 +1426,11 @@ h1 {
 
   .tile {
     font-size: clamp(1.72rem, 5.15dvh, 2.28rem);
+  }
+}
+
+@media (max-width: 480px) and (max-height: 760px) {
+  .play-more-panel:not([hidden]) ~ .keyboard {
+    display: none;
   }
 }
