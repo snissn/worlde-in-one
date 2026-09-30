@@ -25,6 +25,8 @@ Daily puzzle sets for 2026 through 2040 are committed as annual files and loaded
 npm run generate-daily -- --start-year=2026 --end-year=2040
 ```
 
+The revised daily generation starts on **October 1, 2026**, according to the player's local calendar date. Every daily set through September 30 retains its original five answers and clue boards, including browser fallback generation, so deploying during that day does not reset a game in progress. Shared challenges use the revised generation immediately; existing challenge links can produce changed puzzles. `EASY_DAILY_START_DATE` controls the daily cutoff. The annual payload's `version: 1` describes its data format.
+
 ## Test
 
 ```sh

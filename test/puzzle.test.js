@@ -243,7 +243,7 @@ test("classic-only June 8 board is not unique when all valid guesses can be answ
   assert.ok(remainingAnswersForRows(classicRows).length > 1, "classic board should not be valid because multiple valid guesses fit");
 });
 
-test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
+test("daily puzzles before the rollout retain their original deterministic score bands", () => {
   assert.equal(dateKeyForPuzzle(new Date(2026, 0, 2)), "2026-01-02");
 
   const first = createDailyPuzzles("2026-06-05", 5);
@@ -252,7 +252,7 @@ test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
   const expectedLabels = DIFFICULTY_BANDS.map((band) => band.label);
 
   assert.equal(first.dateKey, "2026-06-05");
-  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["drink", "catch", "stiff", "queer", "payee"]);
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["vista", "catch", "agree", "queer", "payee"]);
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
   assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), nextDay.puzzles.map((puzzle) => puzzle.answer));
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
@@ -267,7 +267,7 @@ test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
 
   for (const puzzle of first.puzzles) {
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
-    assert.equal(isTrivialPuzzle(puzzle), puzzle.difficultyLabel === "Easy");
+    assert.equal(isTrivialPuzzle(puzzle), false);
     assert.equal(puzzle.difficulty.band.label, puzzle.difficultyLabel);
     assert.ok(puzzle.difficulty.score >= puzzle.difficulty.band.minScore);
     assert.ok(puzzle.difficulty.score < puzzle.difficulty.band.maxScore);

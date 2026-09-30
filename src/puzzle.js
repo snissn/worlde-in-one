@@ -6,6 +6,7 @@ export const ANSWER_BANKS = Object.freeze({
 });
 
 export const ANSWERS = CLASSIC_ANSWERS;
+export const EASY_DAILY_START_DATE = "2026-10-01";
 
 export const TileState = Object.freeze({
   ABSENT: "absent",
@@ -635,6 +636,10 @@ export function dateKeyForPuzzle(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+export function dailyUsesEasyOpening(date = new Date()) {
+  return dateKeyForPuzzle(date) >= EASY_DAILY_START_DATE;
+}
+
 function difficultyLabelForRank(index, count) {
   return `#${index + 1}`;
 }
@@ -918,7 +923,7 @@ function selectDifficultySpread(puzzles, count) {
   ));
 }
 
-function selectDifficultyBandSet(puzzles, seedKey = "") {
+function selectDifficultyBandSet(puzzles, seedKey, requireEasyOpening) {
   const selected = [];
   const usedAnswers = new Set();
 
@@ -927,7 +932,7 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
 
     for (const puzzle of puzzles) {
       if (usedAnswers.has(puzzle.answer) || puzzle.difficulty.band.id !== band.id ||
-        (band.id === "easy" && !isEasyPuzzle(puzzle))) {
+        (requireEasyOpening && band.id === "easy" && !isEasyPuzzle(puzzle))) {
         continue;
       }
 
@@ -993,7 +998,11 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   const answers = options.answers ?? answerBankForMode(options.answerBank);
   const candidates = options.candidates ?? VALID_GUESSES;
   const usesDifficultyBands = count === DIFFICULTY_BANDS.length;
-  const generationOptions = usesDifficultyBands ? { ...options, allowEasy: true } : options;
+  const requireEasyOpening = usesDifficultyBands &&
+    (metadata.mode !== "daily" || dailyUsesEasyOpening(setKey));
+  const generationOptions = usesDifficultyBands
+    ? { ...options, allowEasy: requireEasyOpening }
+    : options;
   const poolSize = options.poolSize ?? (
     usesDifficultyBands
       ? DEFAULT_DAILY_CANDIDATE_POOL_SIZE
@@ -1016,7 +1025,7 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
     pool.push(puzzle);
 
     if (usesDifficultyBands && pool.length >= minPoolSize) {
-      selectedPuzzles = selectDifficultyBandSet(pool, setKey);
+      selectedPuzzles = selectDifficultyBandSet(pool, setKey, requireEasyOpening);
       if (selectedPuzzles) {
         break;
       }
@@ -1032,12 +1041,12 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   }
 
   const puzzles = usesDifficultyBands
-    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey))
+    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey, requireEasyOpening))
     : selectDifficultySpread(pool, count);
 
   if (!puzzles) {
     const foundBands = new Set(pool
-      .filter((puzzle) => puzzle.difficulty.band.id !== "easy" || isEasyPuzzle(puzzle))
+      .filter((puzzle) => !requireEasyOpening || puzzle.difficulty.band.id !== "easy" || isEasyPuzzle(puzzle))
       .map((puzzle) => puzzle.difficulty.band.id));
     const missing = DIFFICULTY_BANDS
       .filter((band) => !foundBands.has(band.id))
