@@ -6,6 +6,7 @@ export const ANSWER_BANKS = Object.freeze({
 });
 
 export const ANSWERS = CLASSIC_ANSWERS;
+export const EASY_DAILY_START_DATE = "2026-10-01";
 
 export const TileState = Object.freeze({
   ABSENT: "absent",
@@ -22,6 +23,16 @@ const DEFAULT_DAILY_MIN_CANDIDATE_POOL_SIZE = 16;
 const DAILY_BAND_REPRESENTATIVE_WINDOW = 4;
 const DEFAULT_PROBE_POOL_SIZE = 320;
 const DEFAULT_PUZZLE_CANDIDATE_CACHE = new Map();
+const DEFAULT_EASY_PUZZLE_CANDIDATE_CACHE = new Map();
+// Recognition should not be the challenge in the opening puzzle.
+const EASY_ANSWER_SET = new Set(`
+  groan orbit ulcer facet cloth detox candy bagel claim glint while argue fault
+  dirty aside bloke decor whine gnash tidal clamp great nicer score decry youth
+  toxin reign sixth scour yacht exist niche sneak flask basic ounce shunt surge
+  crash mourn agony lemon spray front aloft china slurp prune cramp chair dicey
+  decoy godly crest clear snake group taken gourd maybe drink onset owner entry
+  other sting cedar trend
+`.trim().split(/\s+/));
 export const SHARE_SEED_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 const SHARE_SEED_LENGTH = 6;
 const SHARE_SEED_CHARACTERS = new Set(SHARE_SEED_ALPHABET);
@@ -625,6 +636,10 @@ export function dateKeyForPuzzle(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+export function dailyUsesEasyOpening(date = new Date()) {
+  return dateKeyForPuzzle(date) >= EASY_DAILY_START_DATE;
+}
+
 function difficultyLabelForRank(index, count) {
   return `#${index + 1}`;
 }
@@ -739,6 +754,18 @@ export function isTrivialPuzzle(puzzle, answers = ANSWERS) {
     (features.maxRowCorrect >= 3 && features.maxRowColored === 5);
 }
 
+export function isEasyPuzzle(puzzle) {
+  const clues = buildLockedClues(puzzle.rows);
+  const correctPositions = clues.correctPositions.filter(Boolean).length;
+  const requiredLetters = [...clues.requiredCounts.values()]
+    .reduce((total, count) => total + count, 0);
+
+  return EASY_ANSWER_SET.has(puzzle.answer) && puzzle.rows.length <= 3 &&
+    new Set(puzzle.answer).size === 5 &&
+    correctPositions === 3 && requiredLetters === 4 &&
+    puzzle.rows.every((row) => row.pattern.filter((state) => state === TileState.CORRECT).length <= 3);
+}
+
 export function remainingAnswersForRows(rows, answers = VALID_GUESSES) {
   const normalizeCandidates = answers !== VALID_GUESSES && answers !== CLASSIC_ANSWERS;
   return rows.reduce(
@@ -833,7 +860,10 @@ export function buildPuzzleForTarget(targetInput, options = {}) {
     remaining: Object.freeze(remaining)
   });
 
-  if (isTrivialPuzzle(puzzle, candidatesUniverse)) {
+  if (isTrivialPuzzle(puzzle, candidatesUniverse) && !(
+    options.allowEasy && isEasyPuzzle(puzzle) &&
+    difficultyForPuzzle(puzzle, { candidates: candidatesUniverse }).band.id === "easy"
+  )) {
     return null;
   }
 
@@ -893,7 +923,7 @@ function selectDifficultySpread(puzzles, count) {
   ));
 }
 
-function selectDifficultyBandSet(puzzles, seedKey = "") {
+function selectDifficultyBandSet(puzzles, seedKey, requireEasyOpening) {
   const selected = [];
   const usedAnswers = new Set();
 
@@ -901,7 +931,8 @@ function selectDifficultyBandSet(puzzles, seedKey = "") {
     const candidates = [];
 
     for (const puzzle of puzzles) {
-      if (usedAnswers.has(puzzle.answer) || puzzle.difficulty.band.id !== band.id) {
+      if (usedAnswers.has(puzzle.answer) || puzzle.difficulty.band.id !== band.id ||
+        (requireEasyOpening && band.id === "easy" && !isEasyPuzzle(puzzle))) {
         continue;
       }
 
@@ -947,7 +978,7 @@ function puzzleCandidateForTarget(target, options, answers, candidates) {
   const cache = answers === CLASSIC_ANSWERS &&
     candidates === VALID_GUESSES &&
     (options.probePoolSize ?? DEFAULT_PROBE_POOL_SIZE) === DEFAULT_PROBE_POOL_SIZE
-    ? DEFAULT_PUZZLE_CANDIDATE_CACHE
+    ? (options.allowEasy ? DEFAULT_EASY_PUZZLE_CANDIDATE_CACHE : DEFAULT_PUZZLE_CANDIDATE_CACHE)
     : null;
 
   if (cache?.has(target)) {
@@ -967,6 +998,11 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   const answers = options.answers ?? answerBankForMode(options.answerBank);
   const candidates = options.candidates ?? VALID_GUESSES;
   const usesDifficultyBands = count === DIFFICULTY_BANDS.length;
+  const requireEasyOpening = usesDifficultyBands &&
+    (metadata.mode !== "daily" || dailyUsesEasyOpening(setKey));
+  const generationOptions = usesDifficultyBands
+    ? { ...options, allowEasy: requireEasyOpening }
+    : options;
   const poolSize = options.poolSize ?? (
     usesDifficultyBands
       ? DEFAULT_DAILY_CANDIDATE_POOL_SIZE
@@ -981,7 +1017,7 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   let selectedPuzzles = null;
 
   for (const target of shuffled(answers, rng)) {
-    const puzzle = puzzleCandidateForTarget(target, options, answers, candidates);
+    const puzzle = puzzleCandidateForTarget(target, generationOptions, answers, candidates);
     if (!puzzle) {
       continue;
     }
@@ -989,7 +1025,7 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
     pool.push(puzzle);
 
     if (usesDifficultyBands && pool.length >= minPoolSize) {
-      selectedPuzzles = selectDifficultyBandSet(pool, setKey);
+      selectedPuzzles = selectDifficultyBandSet(pool, setKey, requireEasyOpening);
       if (selectedPuzzles) {
         break;
       }
@@ -1005,11 +1041,13 @@ function createPuzzleSet(setKey, rngSeed, count, options, metadata = {}) {
   }
 
   const puzzles = usesDifficultyBands
-    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey))
+    ? (selectedPuzzles ?? selectDifficultyBandSet(pool, setKey, requireEasyOpening))
     : selectDifficultySpread(pool, count);
 
   if (!puzzles) {
-    const foundBands = new Set(pool.map((puzzle) => puzzle.difficulty.band.id));
+    const foundBands = new Set(pool
+      .filter((puzzle) => !requireEasyOpening || puzzle.difficulty.band.id !== "easy" || isEasyPuzzle(puzzle))
+      .map((puzzle) => puzzle.difficulty.band.id));
     const missing = DIFFICULTY_BANDS
       .filter((band) => !foundBands.has(band.id))
       .map((band) => band.label)

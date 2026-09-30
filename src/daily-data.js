@@ -1,4 +1,4 @@
-import { DIFFICULTY_BANDS, TileState, dateKeyForPuzzle } from "./puzzle.js";
+import { DIFFICULTY_BANDS, TileState, dateKeyForPuzzle, dailyUsesEasyOpening, isEasyPuzzle } from "./puzzle.js";
 
 const PATTERN_STATES = Object.freeze({
   a: TileState.ABSENT,
@@ -33,6 +33,10 @@ export function decodeDailyPuzzles(payload, dateKey) {
         pattern: Object.freeze([...pattern].map((tile) => PATTERN_STATES[tile]))
       });
     });
+
+    if (index === 0 && dailyUsesEasyOpening(dateKey) && !isEasyPuzzle({ answer, rows })) {
+      throw new Error(`Invalid pre-generated Easy warm-up for ${dateKey}`);
+    }
 
     return Object.freeze({
       answer,

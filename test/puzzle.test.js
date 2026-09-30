@@ -20,6 +20,7 @@ import {
   generateShareSeed,
   honorsLockedClues,
   isSolved,
+  isEasyPuzzle,
   isTrivialPuzzle,
   lockedCluesForRows,
   normalizeShareSeed,
@@ -209,7 +210,21 @@ test("trivial swap puzzles are rejected", () => {
 
   assert.equal(signature(trivial.rows[0].pattern), "cpcpc");
   assert.equal(isTrivialPuzzle(trivial), true);
+  assert.equal(isEasyPuzzle(trivial), false);
   assert.equal(buildPuzzleForTarget("adobe"), null);
+  assert.equal(buildPuzzleForTarget("adobe", { allowEasy: true }), null);
+});
+
+test("Easy leaves a real deduction without hiding repeated letters", () => {
+  const puzzle = buildPuzzleForTarget("chair", { allowEasy: true });
+  const clues = lockedCluesForRows(puzzle.rows);
+
+  assert.equal(isEasyPuzzle(puzzle), true);
+  assert.deepEqual(clues.correctPositions, ["c", "h", "a", null, null]);
+  assert.deepEqual(clues.requiredCounts, { c: 1, r: 1, a: 1, h: 1 });
+  assert.deepEqual(remainingAnswersForRows(puzzle.rows), ["chair"]);
+  assert.ok(remainingAnswersForRows(puzzle.rows.slice(0, -1)).length > 1);
+  assert.equal(buildPuzzleForTarget("chair"), null, "the Easy exception stays scoped to difficulty-band sets");
 });
 
 test("classic-only June 8 board is not unique when all valid guesses can be answers", () => {
@@ -228,7 +243,7 @@ test("classic-only June 8 board is not unique when all valid guesses can be answ
   assert.ok(remainingAnswersForRows(classicRows).length > 1, "classic board should not be valid because multiple valid guesses fit");
 });
 
-test("daily puzzles are deterministic and fill fixed difficulty bands", () => {
+test("daily puzzles before the rollout retain their original deterministic score bands", () => {
   assert.equal(dateKeyForPuzzle(new Date(2026, 0, 2)), "2026-01-02");
 
   const first = createDailyPuzzles("2026-06-05", 5);
@@ -290,15 +305,38 @@ test("share seeds generate deterministic replayable puzzle sets", () => {
   assert.equal(first.mode, "seed");
   assert.equal(first.shareSeed, "abc234");
   assert.equal(first.dateKey, "seed-abc234");
-  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["omega", "noise", "olive", "overt", "glyph"]);
+  assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), ["cramp", "noise", "olive", "novel", "glyph"]);
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.answer), second.puzzles.map((puzzle) => puzzle.answer));
   assert.notDeepEqual(first.puzzles.map((puzzle) => puzzle.answer), other.puzzles.map((puzzle) => puzzle.answer));
   assert.deepEqual(first.puzzles.map((puzzle) => puzzle.difficultyLabel), expectedLabels);
 
   for (const puzzle of first.puzzles) {
     assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
-    assert.equal(isTrivialPuzzle(puzzle), false);
+    assert.equal(isTrivialPuzzle(puzzle), puzzle.difficultyLabel === "Easy");
   }
+});
+
+test("daily and shared first puzzles stay within the Easy opening rule", () => {
+  const answers = new Set();
+  for (let index = 1; index <= 24; index += 1) {
+    for (const set of [
+      createDailyPuzzles(`2026-10-${String(index).padStart(2, "0")}`),
+      createSeededPuzzles(generateShareSeed(seededRandom(index)))
+    ]) {
+      const puzzle = set.puzzles[0];
+      const clues = lockedCluesForRows(puzzle.rows);
+      assert.equal(puzzle.difficultyLabel, "Easy");
+      assert.equal(isEasyPuzzle(puzzle), true);
+      assert.equal(clues.correctPositions.filter(Boolean).length, 3);
+      assert.equal(Object.values(clues.requiredCounts).reduce((sum, count) => sum + count, 0), 4);
+      assert.equal(new Set(puzzle.answer).size, 5);
+      assert.ok(puzzle.rows.length >= 2 && puzzle.rows.length <= 3);
+      assert.deepEqual(remainingAnswersForRows(puzzle.rows), [puzzle.answer]);
+      assert.equal(new Set(set.puzzles.map((item) => item.answer)).size, 5);
+      answers.add(puzzle.answer);
+    }
+  }
+  assert.ok(answers.size >= 6, "the opening should retain answer variety");
 });
 
 test("generated puzzles stop once one answer remains", () => {
