@@ -286,3 +286,62 @@ test("gameplay events follow actual interaction, restored progress, and asynchro
     assert.ok(![...app.timers.values()].some((timer) => timer.delay === 500));
   }
 });
+
+test("daily progress survives reload, refreshes at local midnight, and blocks stale solves", async (t) => {
+  const keys = ["window", "document", "HTMLElement", "HTMLButtonElement", "navigator", "fetch", "Date"];
+  const originals = keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  const timezone = process.env.TZ;
+  const RealDate = Date;
+  process.env.TZ = "America/New_York";
+  let now = new RealDate(2026, 2, 8).getTime();
+  globalThis.Date = class extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  };
+  t.after(() => {
+    for (const [key, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+    if (timezone === undefined) delete process.env.TZ;
+    else process.env.TZ = timezone;
+  });
+  const element = (selector) => document.querySelector(selector);
+  let app = await loadApp();
+  assert.equal(element("#daily-status").hidden, false);
+  assert.equal(element("#daily-solved").textContent, "0/5 solved");
+  assert.equal(element("#daily-streak").textContent, "0-day streak");
+  assert.ok([...app.timers.values()].some(({ delay }) => delay === 23 * 60 * 60 * 1000));
+  now = new RealDate(2026, 2, 8, 23, 59, 59).getTime();
+  app.click("#reveal");
+  app.key("Enter");
+  assert.equal(element("#daily-solved").textContent, "1/5 solved");
+  assert.equal(element("#daily-streak").textContent, "1-day streak");
+
+  app = await loadApp(app.storage);
+  assert.equal(element("#daily-solved").textContent, "1/5 solved");
+  app.puzzle(1);
+  app.click("#reveal");
+  const midnight = [...app.timers.values()].find(({ delay }) => delay === 1000);
+  now = new RealDate(2026, 2, 9).getTime();
+  midnight.callback();
+  assert.equal(element("#daily-availability").textContent, "Today's puzzles are ready.");
+  assert.equal(element("#daily-refresh").hidden, false);
+  assert.equal(element("#daily-streak").textContent, "1-day streak", "yesterday's streak stays alive until today is missed");
+  app.key("Enter");
+  assert.equal(element("#daily-solved").textContent, "1/5 solved");
+  assert.equal(app.events.filter(({ name }) => name === "level_end").length, 0);
+  assert.equal(JSON.parse([...app.storage.values()][0]).states[1].submitted, false);
+  assert.equal(new URL(element("#daily-refresh").href).searchParams.get("utm_source"), "friends");
+
+  now = new RealDate(2026, 2, 10).getTime();
+  document.dispatch("visibilitychange");
+  assert.equal(element("#daily-streak").textContent, "0-day streak");
+  Object.defineProperty(app.window, "localStorage", { get() { throw new Error("blocked"); } });
+  document.dispatch("visibilitychange");
+  assert.equal(element("#daily-streak").textContent, "Streak unavailable");
+
+  now = new RealDate(2026, 10, 1).getTime();
+  app = await loadApp();
+  assert.ok([...app.timers.values()].some(({ delay }) => delay === 25 * 60 * 60 * 1000));
+});

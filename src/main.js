@@ -6,6 +6,7 @@ import {
   createSeededPuzzles,
   dailyChallengeSeed,
   dailyChallengeSeedIndex,
+  dateKeyForPuzzle,
   honorsLockedClues,
   isSolved,
   isValidGuess,
@@ -17,6 +18,7 @@ import {
 } from "./puzzle.js";
 import { loadPregeneratedDailyPuzzles } from "./daily-data.js";
 import {
+  loadDailyStreak,
   loadSavedDailyState,
   saveDailyState as persistDailyState,
   solvedPattern
@@ -66,6 +68,12 @@ const puzzleTabs = document.querySelector("#puzzle-tabs");
 const dailyDate = document.querySelector("#daily-date");
 const seedDateLink = document.querySelector("#seed-date-link");
 const dailyTitle = document.querySelector("#daily-title");
+const dailyStatus = document.querySelector("#daily-status");
+const dailySolved = document.querySelector("#daily-solved");
+const dailyStreak = document.querySelector("#daily-streak");
+const dailyAvailability = document.querySelector("#daily-availability");
+const dailyRefreshLink = document.querySelector("#daily-refresh");
+let dailyStatusTimer;
 const revealButton = document.querySelector("#reveal");
 const settingsButton = document.querySelector("#settings-button");
 const helpButton = document.querySelector("#help-button");
@@ -153,6 +161,26 @@ function saveDailyState() {
 
 function activeState() {
   return puzzleStates[activePuzzleIndex];
+}
+
+function updateDailyProgress() {
+  window.clearTimeout(dailyStatusTimer);
+  dailyStatus.hidden = !daily || isSeededGame;
+  if (dailyStatus.hidden) return;
+
+  const now = new Date();
+  const stale = daily.dateKey !== dateKeyForPuzzle(now);
+  const solved = puzzleStates.filter((state) => state.submitted && isSolved(state.pattern)).length;
+  const streak = loadDailyStreak(now);
+  dailySolved.textContent = `${solved}/${daily.puzzles.length} solved`;
+  dailyStreak.textContent = streak === null ? "Streak unavailable" : `${streak}-day streak`;
+  dailyAvailability.textContent = stale ? "Today's puzzles are ready." : "New puzzles at local midnight.";
+  dailyRefreshLink.hidden = !stale;
+  dailyRefreshLink.href = window.location.href;
+
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  dailyStatusTimer = window.setTimeout(updateDailyProgress, midnight - now);
 }
 
 function analyticsContext(includePuzzle = true) {
@@ -532,6 +560,11 @@ function keyboardRowsForActivePuzzle() {
 }
 
 function submitGuess() {
+  if (!isSeededGame && daily.dateKey !== dateKeyForPuzzle()) {
+    updateDailyProgress();
+    showToast("New day — open today's puzzles to keep your streak.");
+    return;
+  }
   const state = activeState();
   if (state.submitted) {
     return;
@@ -578,6 +611,7 @@ function submitGuess() {
   setKeyboardDisabled(true);
   showToast("Got it", "success");
   saveDailyState();
+  updateDailyProgress();
   trackEvent("level_end", analyticsContext());
   if (isGameComplete()) trackEvent("game_complete", analyticsContext(false));
 }
@@ -1000,6 +1034,9 @@ async function initializeApp() {
   saveDailyState();
   bindEventHandlers();
   updateModalButtonStates();
+  updateDailyProgress();
+  document.addEventListener("visibilitychange", updateDailyProgress);
+  window.addEventListener("focus", updateDailyProgress);
   trackEvent("game_ready", analyticsContext(false));
 }
 
